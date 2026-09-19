@@ -324,23 +324,49 @@ class PeopleEncoder(TransformerMixin, BaseEstimator):
         return self.feature_names_out_
 
 
-def build_feature_transformer(director_min_count: int = 10, actor_min_count: int = 20) -> ColumnTransformer:
+FEATURE_GROUPS = ("numeric", "genre", "director", "actors")
+
+
+def build_feature_transformer(director_min_count: int = 10, actor_min_count: int = 20,
+                              feature_groups: tuple[str, ...] = FEATURE_GROUPS) -> ColumnTransformer:
     """Return an UNFITTED transformer mapping FEATURE_COLUMNS to a numeric feature matrix.
 
     Fit it on training rows only (e.g. inside an sklearn Pipeline), then transform
     validation/test rows with the fitted object.
+
+    `feature_groups` selects a subset of the feature groups (used for ablation
+    experiments); the default builds all of them.
     """
+    unknown = set(feature_groups) - set(FEATURE_GROUPS)
+    if unknown:
+        raise ValueError(f"Unknown feature groups: {sorted(unknown)}")
+    steps = {
+        "numeric": (NumericFeatureTransformer(), ["Year", "Duration_min"]),
+        "genre": (GenreMultiHotEncoder(), ["Genre"]),
+        "director": (PeopleEncoder(prefix="director", min_count=director_min_count), ["Director"]),
+        "actors": (PeopleEncoder(prefix="actor", min_count=actor_min_count), ACTOR_COLUMNS),
+    }
     transformer = ColumnTransformer(
-        transformers=[
-            ("numeric", NumericFeatureTransformer(), ["Year", "Duration_min"]),
-            ("genre", GenreMultiHotEncoder(), ["Genre"]),
-            ("director", PeopleEncoder(prefix="director", min_count=director_min_count), ["Director"]),
-            ("actors", PeopleEncoder(prefix="actor", min_count=actor_min_count), ACTOR_COLUMNS),
-        ],
+        transformers=[(name, *steps[name]) for name in FEATURE_GROUPS if name in feature_groups],
         remainder="drop",
         verbose_feature_names_out=False,
     )
     return transformer.set_output(transform="pandas")
+
+
+def make_group_id(model_df: pd.DataFrame) -> pd.Series:
+    """Group key 'normalised title|year' for group-aware splitting.
+
+    The title is stripped, inner whitespace collapsed and case-folded; a missing year becomes 'NA'.
+    Rows with a missing or blank title get a unique key from `raw_index`, so unrelated untitled
+    rows are never merged into one group.
+    """
+    title = model_df["Name"].fillna("").str.strip().str.replace(r"\s+", " ", regex=True).str.casefold()
+    year = model_df["Year"].astype("Int64").astype("string").fillna("NA")
+    group = title + "|" + year
+    blank = title.eq("")
+    group[blank] = "__untitled__|" + model_df.loc[blank, "raw_index"].astype(str)
+    return group.rename("group_id")
 
 
 def get_features_and_target(model_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
