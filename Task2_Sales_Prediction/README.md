@@ -6,8 +6,10 @@ Predicting sales from advertising spend across TV, Radio and Newspaper.
 This folder is named `Task2_Sales_Prediction` as my own project numbering; it corresponds to
 **CodSoft Task 4: Sales Prediction Using Python**.
 
-**Status:** Phases 1–2 complete — dataset audit, exploratory data analysis, and a reusable preprocessing
-pipeline. No model has been trained yet; model training begins in Phase 3.
+**Status:** Phases 1–3 complete — dataset audit, exploratory data analysis, a reusable preprocessing
+pipeline, and an initial model comparison. The Phase 3 results are a first comparison, not final
+performance: no hyperparameter has been tuned and no model has been saved. Phase 4 handles improvement and
+final selection.
 
 ---
 
@@ -161,6 +163,75 @@ The raw dataset checksum is re-verified at the end of the notebook and is unchan
 
 ---
 
+## Phase 3 — Initial Model Training
+
+A first comparison of model families on the fixed Phase 2 hold-out — see
+[notebooks/03_model_training.ipynb](notebooks/03_model_training.ipynb). Every configuration was fixed in
+advance and scored once. **No tuning, no search, and no model artefact saved.**
+
+### Setup
+
+- **Split:** the Phase 2 hold-out reused unchanged — 160 train / 40 test, `random_state = 42`. The notebook
+  rebuilds it from `src/data_preprocessing.py` and asserts it matches Phase 2 before training anything.
+- **Preprocessing:** the Phase 2 `ColumnTransformer` composed with each estimator in a `sklearn.Pipeline`, so
+  the scaler is fitted inside `fit` on training rows only and merely applied at predict time.
+- **Baseline:** predict the mean of `y_train` (15.3306) for every test observation. This is a reference
+  point, not a machine learning model. The mean is taken from the training rows only — using the full
+  dataset's mean would leak the test set into the reference.
+- **Metrics:** MAE, MSE, RMSE and R². This is regression, so accuracy is not a meaningful metric and is not
+  reported.
+
+### Results on the fixed 40-row hold-out
+
+| Model | Test MAE | Test RMSE | Test R² | Train RMSE | Gap |
+|---|---|---|---|---|---|
+| Gradient Boosting (200 stages, lr 0.05, depth 3) | 0.8679 | **1.1451** | 0.9576 | 0.4438 | 0.701 |
+| Random Forest (300 trees) | 0.9025 | **1.1798** | 0.9550 | 0.4716 | 0.708 |
+| Lasso (α = 0.01) | 1.2725 | 1.7050 | 0.9059 | 1.6360 | 0.069 |
+| Linear Regression | 1.2748 | 1.7052 | 0.9059 | 1.6359 | 0.069 |
+| Ridge (α = 1.0) | 1.2734 | 1.7074 | 0.9057 | 1.6362 | 0.071 |
+| Baseline (train mean) | 4.9315 | 5.6482 | −0.0324 | 5.1768 | 0.471 |
+
+Ordered by **lowest test RMSE on the fixed Phase 3 hold-out**. This describes this particular 40-row sample
+with these fixed configurations; it is not a general ranking of the algorithms.
+
+### Observations
+
+- **Every model beats the naive baseline by a wide margin** — roughly 70–80% lower test RMSE. The advertising
+  budgets carry real signal about sales.
+- **The three linear models are indistinguishable from one another**, spanning 1.7050–1.7074 RMSE. With three
+  weakly correlated predictors and 160 training rows there is nothing for a regularisation penalty to fix, so
+  this is the expected outcome. Lasso at α = 0.01 drove no coefficient to zero.
+- **Both tree ensembles form a clearly better cluster** at ~1.15–1.18, about 31% below the linear group,
+  which suggests the relationship is not purely additive.
+- **Generalisation gaps split by family:** ~0.07 for the linear models (little capacity to memorise) against
+  ~0.70 for both ensembles, whose train R² exceeds 0.99. The gap indicates unused headroom to constrain in
+  Phase 4 — it does not disqualify them, since they predict *unseen* data considerably better.
+- **Error profile of the leading model:** median absolute error 0.78; 65% of test predictions within 1 sales
+  unit, 95% within 2; largest miss 4.01. These are descriptive statistics of one 40-row sample, not
+  guarantees about future predictions.
+- **Retained outliers:** of the two `Newspaper` rows Phase 1 flagged, one fell in each split. The test-set one
+  had the 4th largest error of 40 (1.30) — above the median but far from extreme, and neither of the two
+  worst errors was a flagged row. Phase 2's decision to retain them stands.
+- **Linear diagnostics:** residuals roughly centred with no strong curvature or funnel, but left-skewed with
+  a −7.19 tail. The correlation between predicted value and absolute residual is 0.103, too weak to either
+  confirm or refute the possible non-constant variance Phase 1 noted.
+- **Reproducibility:** the split, the baseline and every reported metric reproduce exactly across fresh
+  kernels. Four of five models refit bit-identically; Random Forest agrees to ~1e-14 because `n_jobs=-1`
+  averages its 300 trees in a nondeterministic summation order. With `n_jobs=1` it is bit-identical too.
+
+### Initial candidate for Phase 4
+
+**Gradient Boosting Regressor** — lowest test RMSE (1.1451), MAE (0.8679) and highest R² (0.9576).
+
+This is an initial candidate, not a final selection. It leads Random Forest by 0.0347 RMSE units — about 3%
+— on a 40-row sample, which is inside the noise; a different split could reverse the order. Both should be
+carried into Phase 4 as live candidates, where cross-validation on the **training** set will do the
+comparison properly. The hold-out has now been used for its one permitted purpose and should not drive
+further decisions.
+
+---
+
 ## Project Structure
 
 ```
@@ -169,15 +240,21 @@ Task2_Sales_Prediction/
 │   └── advertising.csv
 ├── notebooks/
 │   ├── 01_dataset_audit.ipynb        # Phase 1 — audit & EDA
-│   └── 02_data_preprocessing.ipynb   # Phase 2 — preprocessing & validation
+│   ├── 02_data_preprocessing.ipynb   # Phase 2 — preprocessing & validation
+│   └── 03_model_training.ipynb       # Phase 3 — baseline & initial models
 ├── src/
 │   └── data_preprocessing.py         # reusable pipeline, imported by every later phase
 ├── visualizations/
 │   ├── 02_sales_distribution.png
 │   ├── 03_feature_vs_sales.png
 │   ├── 04_correlation_heatmap.png
-│   └── 05_preprocessing_effect.png
-├── models/                           # saved model artefacts (Phase 3 onwards)
+│   ├── 05_preprocessing_effect.png
+│   ├── 06_model_comparison.png
+│   ├── 07_model_mae_comparison.png
+│   ├── 08_actual_vs_predicted.png
+│   ├── 09_residual_distribution.png
+│   └── 10_residuals_vs_predicted.png
+├── models/                           # saved model artefacts (Phase 4 onwards — empty)
 ├── README.md
 └── requirements.txt
 ```
@@ -194,9 +271,10 @@ no categorical variables). Both findings are reported in the notebook instead.
 pip install -r requirements.txt
 jupyter notebook notebooks/01_dataset_audit.ipynb        # Phase 1
 jupyter notebook notebooks/02_data_preprocessing.ipynb   # Phase 2
+jupyter notebook notebooks/03_model_training.ipynb       # Phase 3
 ```
 
-Both notebooks resolve their paths relative to the repository, contain no absolute paths and run top to
+All three notebooks resolve their paths relative to the repository, contain no absolute paths and run top to
 bottom from a fresh kernel. To use the preprocessing directly:
 
 ```python
