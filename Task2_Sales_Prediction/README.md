@@ -6,13 +6,15 @@ Predicting sales from advertising spend across TV, Radio and Newspaper.
 This folder is named `Task2_Sales_Prediction` as my own project numbering; it corresponds to
 **CodSoft Task 4: Sales Prediction Using Python**.
 
-**Status:** Phases 1–5 complete — dataset audit, exploratory data analysis, a reusable preprocessing
-pipeline, an initial model comparison, cross-validated model selection with tuning, and a final one-time
-evaluation on the held-out test set with the fitted pipeline persisted.
+**Status:** Phases 1–6 complete — dataset audit, exploratory data analysis, a reusable preprocessing
+pipeline, an initial model comparison, cross-validated model selection with tuning, a final one-time
+evaluation on the held-out test set with the fitted pipeline persisted, and an interactive dashboard.
 
 **Final result:** test **RMSE 1.2173 · MAE 0.9354 · R² 0.9520** on 40 held-out rows — an estimate from a
 small benchmark dataset, not a performance guarantee. See the caveats in
 [Phase 5](#phase-5--final-evaluation--model-persistence).
+
+**Try it:** `streamlit run app.py`
 
 ---
 
@@ -510,10 +512,89 @@ against it would no longer be unbiased.
 
 ---
 
+## Phase 6 — Streamlit Dashboard
+
+An interactive dashboard over the finished pipeline — [`app.py`](app.py).
+
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+Run it from the `Task2_Sales_Prediction` directory. All paths resolve relative to the file, so no
+machine-specific configuration is needed.
+
+**The dashboard is a presentation layer.** It loads the pipeline persisted in Phase 5 and calls the existing
+`src/predict.py` API. It **never retrains, tunes or modifies any model**, and it never writes to the dataset
+or the artefact — both were checksum-verified as unchanged after the dashboard was built.
+
+### Pages
+
+| Page | What it shows |
+|---|---|
+| **Overview** | Summary cards (200 observations, 3 features, target `Sales`, 160 train / 40 test, Gradient Boosting), what the project does, the ML pipeline from Dataset → Audit → Preprocessing → Model Training → Cross-Validation → Final Evaluation → Prediction, and the headline test result |
+| **Predict Sales** | The interactive page — three budget inputs, out-of-range warnings, a prominent prediction, and a chart of the entered budgets |
+| **Data Analysis** | Live analysis of `dataset/advertising.csv`: summary statistics, Sales distribution, per-platform spend distributions, each predictor against Sales, a correlation matrix, and the Phase 1 data-quality audit |
+| **Model Performance** | Final test metrics and Phase 4 CV metrics shown **separately**, the test-RMSE comparison across all models, prediction-error coverage, and residual behaviour |
+| **Model Details** | Hyperparameters, preprocessing, training ranges, artefact information and recorded environment — read from the artefact's own metadata rather than hardcoded — plus the limitations section |
+| **About Project** | Task, problem, technology, ML methods, the full phase pipeline and dataset provenance |
+
+### Prediction workflow
+
+1. Enter a budget for **TV**, **Radio** and **Newspaper**. Defaults are the median training spend, and each
+   input shows the range observed during training.
+2. Inputs are floored at 0 — negative budgets are rejected, consistent with the prediction API.
+3. Select **Predict Sales**. The app calls `predict_sales()` from `src/predict.py`; no inference code is
+   duplicated in `app.py`.
+4. If any budget falls outside the training range, a warning states that the prediction is **extrapolation
+   beyond the training data**. The prediction is still produced — it is flagged, not blocked.
+5. The result is displayed prominently alongside the entered budgets and a bar chart of them. That chart
+   shows the inputs only; it is explicitly **not** a feature-importance chart.
+
+### Model loading
+
+The pipeline is loaded once per session with `@st.cache_resource`, through `predict_api.load_artifact()` —
+so the dashboard and the CLI share one loading path and no page duplicates it. Dataset reads and derived
+statistics are cached with `@st.cache_data`. Nothing is trained at startup.
+
+### Honest reporting carried into the UI
+
+The dashboard surfaces the project's methodological caveats rather than hiding them:
+
+- The small-dataset warning appears on the Overview, Model Performance and About pages.
+- CV metrics and test metrics are shown in **separate** sections and never combined into one figure.
+- Error bands are labelled **prediction-error coverage**, explicitly not classification accuracy.
+- The Model Performance page states that the tuned final model scored worse on this hold-out than the
+  untuned Phase 3 model, and explains why it was retained anyway.
+- Correlations are described as correlations, with causation explicitly ruled out.
+
+### Dependencies added
+
+```
+streamlit==1.64.0
+plotly==7.1.0
+```
+
+Both were already installed at these versions; no existing pin was changed, and `joblib==1.6.0` remains.
+A minimal theme lives in [`.streamlit/config.toml`](.streamlit/config.toml).
+
+### Testing
+
+68 automated checks via `streamlit.testing.v1.AppTest`, all passing: every page renders without exception,
+predictions match the API exactly, multiple valid predictions work, negative and invalid inputs are
+rejected, out-of-range inputs warn (and in-range inputs do not), and each page shows its documented figures.
+The server was also started for real and served HTTP 200, and the CLI prediction API was confirmed still
+working.
+
+---
+
 ## Project Structure
 
 ```
 Task2_Sales_Prediction/
+├── app.py                        # Phase 6 — Streamlit dashboard
+├── .streamlit/
+│   └── config.toml               # dashboard theme
 ├── dataset/                      # raw data, never modified
 │   └── advertising.csv
 ├── notebooks/
@@ -524,7 +605,7 @@ Task2_Sales_Prediction/
 │   └── 05_final_evaluation_persistence.ipynb  # Phase 5 — final test & persistence
 ├── src/
 │   ├── data_preprocessing.py         # reusable pipeline, imported by every later phase
-│   └── predict.py                    # prediction API for the persisted model
+│   └── predict.py                    # prediction API for the persisted model (used by the dashboard)
 ├── visualizations/
 │   ├── 02_sales_distribution.png
 │   ├── 03_feature_vs_sales.png
@@ -565,6 +646,7 @@ jupyter notebook notebooks/02_data_preprocessing.ipynb   # Phase 2
 jupyter notebook notebooks/03_model_training.ipynb       # Phase 3
 jupyter notebook notebooks/04_model_validation_tuning.ipynb  # Phase 4 (~7 min: 1,440 model fits)
 jupyter notebook notebooks/05_final_evaluation_persistence.ipynb  # Phase 5
+streamlit run app.py                                     # Phase 6 dashboard
 ```
 
 All five notebooks resolve their paths relative to the repository, contain no absolute paths and run top to

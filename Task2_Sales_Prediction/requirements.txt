@@ -12,3 +12,7 @@ scikit-learn==1.9.1
 
 # Phase 5 — model persistence and the prediction API (src/predict.py)
 joblib==1.6.0
+
+# Phase 6 — dashboard (presentation layer only; loads the persisted model, never retrains)
+streamlit==1.64.0
+plotly==7.1.0

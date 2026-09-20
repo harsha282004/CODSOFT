@@ -1,0 +1,12 @@
+# Theme for the Sales Prediction dashboard (dark analytics identity).
+# Keeps the app's look consistent regardless of the viewer's local Streamlit theme.
+
+[theme]
+base = "dark"
+primaryColor = "#3987e5"
+backgroundColor = "#0b1220"
+secondaryBackgroundColor = "#151f36"
+textColor = "#e8edf7"
+
+[browser]
+gatherUsageStats = false
