@@ -6,10 +6,10 @@ Predicting sales from advertising spend across TV, Radio and Newspaper.
 This folder is named `Task2_Sales_Prediction` as my own project numbering; it corresponds to
 **CodSoft Task 4: Sales Prediction Using Python**.
 
-**Status:** Phases 1–3 complete — dataset audit, exploratory data analysis, a reusable preprocessing
-pipeline, and an initial model comparison. The Phase 3 results are a first comparison, not final
-performance: no hyperparameter has been tuned and no model has been saved. Phase 4 handles improvement and
-final selection.
+**Status:** Phases 1–4 complete — dataset audit, exploratory data analysis, a reusable preprocessing
+pipeline, an initial model comparison, and cross-validated model selection with hyperparameter tuning. **No
+final test-set result exists yet** and no model has been saved: the 40-row hold-out has been scored exactly
+once per model (Phase 3) and is otherwise reserved for Phase 5.
 
 ---
 
@@ -232,6 +232,128 @@ further decisions.
 
 ---
 
+## Phase 4 — Model Validation, Cross-Validation & Tuning
+
+Model selection done properly, on the training set only — see
+[notebooks/04_model_validation_tuning.ipynb](notebooks/04_model_validation_tuning.ipynb). **The 40-row test
+set was not touched anywhere in this phase**; its fingerprint is recorded at the start of the notebook and
+verified unchanged at the end.
+
+### Methodology
+
+- **Cross-validation:** 5-fold `KFold`, `shuffle=True`, `random_state=42`, on the 160 training rows. Each
+  fold trains on 128 rows and validates on 32.
+- **Leakage control:** every model is a `Pipeline` whose first step is the Phase 2 preprocessor, so the
+  `StandardScaler` is refitted **inside each fold**. Demonstrated empirically in section 15: a fold's scaler
+  has `n_samples_seen_ = 128` and matches that fold's mean, not the full training mean.
+- **Candidates:** Linear Regression, Ridge (α=1.0), Lasso (α=0.01), Random Forest, Gradient Boosting, plus a
+  mean baseline.
+- **Metrics:** MAE, RMSE, R², with per-fold detail and training scores for gap analysis.
+- **Tuning:** exhaustive `GridSearchCV` on the two nonlinear candidates,
+  `scoring="neg_root_mean_squared_error"`, `cv=5`, same folds. 216 Gradient Boosting configurations (1,080
+  fits) and 72 Random Forest configurations (360 fits).
+
+### Cross-validation results (160 training rows)
+
+| Model | CV RMSE | CV MAE | CV R² | Train RMSE | Gap |
+|---|---|---|---|---|---|
+| Gradient Boosting (tuned) | **1.2808** ± 0.1936 | 0.9393 | 0.9341 | 0.4755 | 0.805 |
+| Random Forest (tuned) | 1.3043 ± 0.2240 | 0.9500 | 0.9324 | 0.4942 | 0.810 |
+| Random Forest (Phase 3 config) | 1.3044 ± 0.2354 | 0.9481 | 0.9324 | 0.4940 | 0.810 |
+| Gradient Boosting (Phase 3 config) | 1.3603 ± 0.1695 | 1.0396 | 0.9248 | 0.3586 | 1.002 |
+| Lasso (α=0.01) | 1.6789 ± 0.2787 | 1.2777 | 0.8797 | 1.6267 | 0.052 |
+| Ridge (α=1.0) | 1.6805 ± 0.2810 | 1.2791 | 0.8796 | 1.6271 | 0.053 |
+| Linear Regression | 1.6808 ± 0.2825 | 1.2782 | 0.8793 | 1.6266 | 0.054 |
+| Baseline (train mean) | 5.2061 ± 0.4784 | 4.3316 | −0.0712 | 5.1697 | 0.036 |
+
+**Cross-validation reverses the Phase 3 ordering.** On the Phase 3 hold-out, Gradient Boosting beat Random
+Forest by 0.0347 RMSE; across the five training folds, Random Forest beats Gradient Boosting by 0.0559 and
+wins 3 of 5 folds. Neither ordering is trustworthy: the two models are ~0.05 apart while each varies by
+0.17–0.24 between folds. The Phase 3 ranking was an artefact of which 40 rows landed in the test set.
+
+### Tuned hyperparameters
+
+| Gradient Boosting | | Random Forest | |
+|---|---|---|---|
+| `learning_rate` | 0.02 | `n_estimators` | 200 |
+| `max_depth` | 4 | `max_depth` | 10 |
+| `min_samples_leaf` | 2 | `min_samples_leaf` | 1 |
+| `n_estimators` | 200 | `max_features` | 1.0 |
+| `subsample` | 0.8 | `max_samples` | None |
+| **CV RMSE** | **1.2808** (from 1.3603, −5.8%) | **CV RMSE** | **1.3043** (from 1.3044, −0.0%) |
+
+**Tuning the Random Forest achieved nothing** — the search reproduced the default configuration. That is a
+legitimate result, reported as such rather than dressed up as a 0.0001 improvement. For the forest, the only
+parameter that mattered was `max_features`: restricting splits to 1 of 3 features (`"sqrt"`) averaged 2.106
+RMSE against 1.419 for using all 3.
+
+### Overfitting analysis
+
+| Model | Train RMSE | CV RMSE | Gap | Gap as % of CV RMSE |
+|---|---|---|---|---|
+| Gradient Boosting (Phase 3) | 0.3586 | 1.3603 | 1.0017 | 74% |
+| Random Forest | 0.4940 | 1.3044 | 0.8104 | 62% |
+| Linear / Ridge / Lasso | ~1.627 | ~1.680 | ~0.053 | 3% |
+
+Both ensembles fit training noise substantially: 62–74% of their apparent accuracy does not survive unseen
+data, with train R² above 0.99. The linear models' 3% gaps reflect having almost no capacity to memorise.
+
+A large gap is not on its own grounds for rejection — the ensembles still beat the linear models by ~0.38
+RMSE on held-out folds. It indicates unused headroom, and constraining Gradient Boosting (slower learning
+rate, `subsample=0.8`) did reduce its gap from 1.002 to 0.805.
+
+### Stability analysis
+
+Repeating the cross-validation over five different partitions (`RepeatedKFold`, 25 held-out evaluations):
+
+| Model | Repeated CV RMSE | std | min fold | max fold |
+|---|---|---|---|---|
+| Random Forest (tuned) | 1.3007 | 0.2443 | 0.8443 | 1.9550 |
+| Random Forest (Phase 3) | 1.3062 | 0.2457 | 0.8317 | 1.9588 |
+| Gradient Boosting (tuned) | 1.3067 | 0.2469 | 0.9457 | 1.9576 |
+| Gradient Boosting (Phase 3) | 1.3301 | 0.1886 | 1.0098 | 1.7657 |
+| Linear Regression | 1.6830 | 0.2474 | 1.2862 | 2.2569 |
+
+- **All four ensemble variants are indistinguishable** — a 0.029 spread against standard deviations of
+  0.19–0.25, with individual folds ranging from 0.83 to 1.96.
+- **Most of the tuning gain did not survive a change of partition.** Gradient Boosting's advantage was
+  0.0795 on the original folds but 0.0234 across 25 — roughly 70% of it was the search fitting that specific
+  fold partition, the selection bias inherent in picking the best of 216 configurations scored on the same
+  folds.
+- **The ensemble-versus-linear gap is the one stable finding** (~1.30 vs ~1.68 in every partition tested).
+
+### Outlier sensitivity
+
+Of the two `Newspaper` outliers Phase 1 flagged, **row 101 is in the training set and row 16 is in the test
+set**. Since the test set is off-limits in this phase, only row 101 could be removed — a 160-vs-159 row
+comparison.
+
+| Model | CV RMSE (160) | CV RMSE (159) | Change |
+|---|---|---|---|
+| Gradient Boosting (tuned) | 1.2808 | 1.3200 | +0.0392 (worse) |
+| Random Forest (tuned) | 1.3043 | 1.2504 | −0.0538 (better) |
+| Random Forest (Phase 3) | 1.3044 | 1.2479 | −0.0564 (better) |
+| Gradient Boosting (Phase 3) | 1.3603 | 1.3320 | −0.0283 (better) |
+| Linear Regression | 1.6808 | 1.6662 | −0.0146 (better) |
+
+**Decision: keep all observations.** The direction is inconsistent — removal helps four models and hurts the
+leading one — and every change is around an order of magnitude smaller than the fold-to-fold noise. Phase 2's
+reasoning stands: the value is a plausible advertising budget, not a data error.
+
+### Recommendation for Phase 5
+
+**Tuned Gradient Boosting** as the primary model, with **tuned Random Forest** as an equally defensible
+alternative. The basis is a tie-break on the pre-specified selection metric (5-fold CV RMSE), not a
+demonstrated advantage — under repeated cross-validation the tuned Random Forest is nominally ahead instead.
+These two models cannot be separated by this dataset.
+
+### Deferred to Phase 5
+
+Final test-set evaluation (scored **once**, without re-selecting afterwards), model persistence, the
+prediction script and the dashboard. **No test-set result, no saved model and no dashboard exist yet.**
+
+---
+
 ## Project Structure
 
 ```
@@ -241,7 +363,8 @@ Task2_Sales_Prediction/
 ├── notebooks/
 │   ├── 01_dataset_audit.ipynb        # Phase 1 — audit & EDA
 │   ├── 02_data_preprocessing.ipynb   # Phase 2 — preprocessing & validation
-│   └── 03_model_training.ipynb       # Phase 3 — baseline & initial models
+│   ├── 03_model_training.ipynb       # Phase 3 — baseline & initial models
+│   └── 04_model_validation_tuning.ipynb  # Phase 4 — CV, tuning & stability
 ├── src/
 │   └── data_preprocessing.py         # reusable pipeline, imported by every later phase
 ├── visualizations/
@@ -253,8 +376,13 @@ Task2_Sales_Prediction/
 │   ├── 07_model_mae_comparison.png
 │   ├── 08_actual_vs_predicted.png
 │   ├── 09_residual_distribution.png
-│   └── 10_residuals_vs_predicted.png
-├── models/                           # saved model artefacts (Phase 4 onwards — empty)
+│   ├── 10_residuals_vs_predicted.png
+│   ├── 11_cv_model_comparison.png
+│   ├── 12_cv_rmse_distribution.png
+│   ├── 13_hyperparameter_comparison.png
+│   ├── 14_train_vs_cv_performance.png
+│   └── 15_outlier_sensitivity.png
+├── models/                           # saved model artefacts (Phase 5 onwards — empty)
 ├── README.md
 └── requirements.txt
 ```
@@ -272,9 +400,10 @@ pip install -r requirements.txt
 jupyter notebook notebooks/01_dataset_audit.ipynb        # Phase 1
 jupyter notebook notebooks/02_data_preprocessing.ipynb   # Phase 2
 jupyter notebook notebooks/03_model_training.ipynb       # Phase 3
+jupyter notebook notebooks/04_model_validation_tuning.ipynb  # Phase 4 (~7 min: 1,440 model fits)
 ```
 
-All three notebooks resolve their paths relative to the repository, contain no absolute paths and run top to
+All four notebooks resolve their paths relative to the repository, contain no absolute paths and run top to
 bottom from a fresh kernel. To use the preprocessing directly:
 
 ```python
