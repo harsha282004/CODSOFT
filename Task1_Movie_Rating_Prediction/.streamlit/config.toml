@@ -1,0 +1,12 @@
+# Theme for the Movie Rating Prediction dashboard (dark cinematic identity).
+# Keeps the app's look consistent regardless of the viewer's local Streamlit theme.
+
+[theme]
+base = "dark"
+primaryColor = "#8b5cf6"
+backgroundColor = "#0d0b14"
+secondaryBackgroundColor = "#1b1730"
+textColor = "#ececf1"
+
+[browser]
+gatherUsageStats = false

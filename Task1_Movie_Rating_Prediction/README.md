@@ -22,7 +22,7 @@ development.
 | **Final model** | Gradient Boosting Regressor (tuned) |
 | **Final test performance** | MAE **0.886** · RMSE **1.160** · R² **0.305** |
 | **Improvement over mean baseline** | 21.2% MAE, 16.6% RMSE |
-| **Deliverable** | A saved pipeline (`models/final_movie_rating_pipeline.joblib`) plus a prediction API |
+| **Deliverable** | A saved pipeline (`models/final_movie_rating_pipeline.joblib`), a prediction API and an interactive dashboard |
 
 ---
 
@@ -70,7 +70,7 @@ Key findings from the audit (`notebooks/01_dataset_audit.ipynb`):
 
 ## Technology Stack
 
-Python 3.13 · pandas · NumPy · scikit-learn · Matplotlib · Seaborn · joblib · Jupyter
+Python 3.13 · pandas · NumPy · scikit-learn · Matplotlib · Seaborn · joblib · Jupyter · Streamlit · Plotly
 
 Exact pinned versions are in [`requirements.txt`](requirements.txt).
 
@@ -283,6 +283,35 @@ name-specific column is set, rather than the prediction failing.
 
 ---
 
+## Interactive Dashboard
+
+The project ships with an interactive **Streamlit** dashboard so the whole project can be demonstrated without
+opening a notebook:
+
+```bat
+cd Task1_Movie_Rating_Prediction
+streamlit run app.py
+```
+
+It opens at `http://localhost:8501`. Six pages:
+
+| Page | What it shows |
+|---|---|
+| 🏠 Overview | Project summary, headline metrics and the end-to-end flow |
+| 🎯 Predict Rating | Enter movie details and get a predicted rating, with a gauge and input summary |
+| 📊 Data Analysis | Dataset statistics and interactive charts (ratings, missing data, genres, directors, relationships) |
+| 📈 Model Performance | Final holdout metrics, the evaluation charts, cross-validation evidence and the limitations |
+| 🧠 Model Details | Hyperparameters, feature engineering and permutation importance |
+| ℹ️ About Project | Internship context, workflow and technologies |
+
+The dashboard is a **presentation layer only**. It calls the existing `src.predict.predict_rating` and loads the
+persisted `models/final_movie_rating_pipeline.joblib` once (cached with `@st.cache_resource`); it never trains,
+retrains or modifies the model, and the dataset statistics come from the project's own `src.data_preprocessing`
+functions. Predicted values shown in the dashboard are model output for the details entered — not actual IMDb
+ratings.
+
+---
+
 ## Project Structure
 
 ```
@@ -308,6 +337,10 @@ Task1_Movie_Rating_Prediction/
 │
 ├── visualizations/                    # 21 generated charts (01–21)
 │
+├── .streamlit/
+│   └── config.toml                    # dashboard theme
+│
+├── app.py                             # interactive Streamlit dashboard
 ├── requirements.txt
 └── README.md
 ```

@@ -5,3 +5,7 @@ seaborn==0.13.2
 scikit-learn==1.9.1
 joblib==1.6.0
 jupyter==1.1.1
+
+# Dashboard (presentation layer only)
+streamlit==1.64.0
+plotly==7.1.0
