@@ -9,3 +9,6 @@ jupyter==1.1.1
 
 # Phase 2 — preprocessing (train_test_split, ColumnTransformer / Pipeline, StandardScaler)
 scikit-learn==1.9.1
+
+# Phase 5 — model persistence and the prediction API (src/predict.py)
+joblib==1.6.0

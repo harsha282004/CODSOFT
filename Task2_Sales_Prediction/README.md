@@ -6,10 +6,13 @@ Predicting sales from advertising spend across TV, Radio and Newspaper.
 This folder is named `Task2_Sales_Prediction` as my own project numbering; it corresponds to
 **CodSoft Task 4: Sales Prediction Using Python**.
 
-**Status:** Phases 1–4 complete — dataset audit, exploratory data analysis, a reusable preprocessing
-pipeline, an initial model comparison, and cross-validated model selection with hyperparameter tuning. **No
-final test-set result exists yet** and no model has been saved: the 40-row hold-out has been scored exactly
-once per model (Phase 3) and is otherwise reserved for Phase 5.
+**Status:** Phases 1–5 complete — dataset audit, exploratory data analysis, a reusable preprocessing
+pipeline, an initial model comparison, cross-validated model selection with tuning, and a final one-time
+evaluation on the held-out test set with the fitted pipeline persisted.
+
+**Final result:** test **RMSE 1.2173 · MAE 0.9354 · R² 0.9520** on 40 held-out rows — an estimate from a
+small benchmark dataset, not a performance guarantee. See the caveats in
+[Phase 5](#phase-5--final-evaluation--model-persistence).
 
 ---
 
@@ -354,6 +357,159 @@ prediction script and the dashboard. **No test-set result, no saved model and no
 
 ---
 
+## Phase 5 — Final Evaluation & Model Persistence
+
+The one-time evaluation of the locked model on the 40-row test set reserved since Phase 2 — see
+[notebooks/05_final_evaluation_persistence.ipynb](notebooks/05_final_evaluation_persistence.ipynb).
+
+**Phase 4 vs Phase 5, kept strictly separate:**
+
+| | |
+|---|---|
+| **Phase 4** | Model **selection**, using 5-fold cross-validation on the 160 **training** rows only. The test set was never touched. |
+| **Phase 5** | One-time final **evaluation** on the previously untouched 40-row hold-out. No selection, no tuning, no preprocessing changes. |
+
+The test set's fingerprint was recorded in Phase 4 and re-verified here before anything was fitted — the 40
+rows evaluated are byte-for-byte those set aside.
+
+### Final model and selection rationale
+
+Selected in **Phase 4** by 5-fold CV RMSE on the training set, not by anything measured in Phase 5:
+
+```python
+GradientBoostingRegressor(
+    n_estimators=200,
+    learning_rate=0.02,
+    max_depth=4,
+    min_samples_leaf=2,
+    subsample=0.8,
+    random_state=42,
+)
+```
+
+wrapped in the Phase 2 preprocessing pipeline (`ColumnTransformer` + `StandardScaler`, fitted on the 160
+training rows only — verified: the scaler's `n_samples_seen_` is 160 and its mean matches the training mean,
+not the full-dataset mean).
+
+Phase 4 recommended this configuration as primary while stating plainly that it and the tuned Random Forest
+**cannot be separated by this dataset**.
+
+### Cross-validation estimate vs final test result
+
+| Quantity | Measured on | RMSE | MAE | R² |
+|---|---|---|---|---|
+| **Phase 4 CV** (5-fold) | 160 training rows | 1.2808 ± 0.1936 | 0.9393 | 0.9341 |
+| **Phase 5 TEST** (once) | 40 held-out rows | **1.2173** | **0.9354** | **0.9520** |
+
+The test figure is 0.064 better than the CV estimate — well inside the CV standard deviation of 0.19, so the
+two are consistent. MSE was 1.4819.
+
+### Comparison on the same 40-row hold-out
+
+| Model | Test MAE | Test RMSE | Test R² |
+|---|---|---|---|
+| Gradient Boosting (Phase 3, untuned) | 0.8679 | 1.1451 | 0.9576 |
+| Random Forest (Phase 3) | 0.9025 | 1.1798 | 0.9550 |
+| **Gradient Boosting (tuned) — FINAL** | **0.9354** | **1.2173** | **0.9520** |
+| Lasso (α=0.01) | 1.2725 | 1.7050 | 0.9059 |
+| Linear Regression | 1.2748 | 1.7052 | 0.9059 |
+| Ridge (α=1.0) | 1.2734 | 1.7074 | 0.9057 |
+| Baseline (training mean) | 4.9315 | 5.6482 | −0.0324 |
+
+Against the naive baseline the final model cuts test RMSE by **78.4%** and MAE by **81.0%**, and it beats
+every linear model by about 29%.
+
+**An honest note.** The tuned final model scored *worse* on this hold-out (1.2173) than the untuned Phase 3
+configuration (1.1451). It was still reported as final, because it was selected in advance by
+cross-validation and switching on the strength of these 40 rows would be selecting on the test set — the
+error this project's structure exists to avoid. Phase 4 showed the two configurations sit within 0.023 RMSE
+of each other across 25 repeated CV folds, against fold standard deviations of ~0.19–0.25, so neither result
+establishes one as better. Following the pre-registered rule costs 0.07 RMSE units of reported performance
+and buys a number that means what it says.
+
+### Residual and error findings
+
+- **Bias −0.2422** — a mild tendency to over-predict, small against the target's standard deviation of 5.63.
+- **Median absolute error 0.7970**; largest absolute error **4.2553** (row 150); largest under-prediction
+  +2.9502 (row 66).
+- **Prediction-error coverage** (not classification accuracy — this is regression): **27.5%** of test
+  predictions within ±0.5 sales units, **62.5%** within ±1.0, **90.0%** within ±1.5, **92.5%** within ±2.0.
+- 3 of 40 observations miss by more than 2.0; 1 misses by more than 3.0.
+- Residuals are mildly left-skewed (−0.3114) with **no obvious funnel or curvature**. The prediction range
+  (3.63–23.26) is slightly narrower than the actual range (5.3–24.7) — the mild regression toward the mean
+  characteristic of tree ensembles, which cannot extrapolate beyond the target values seen in training.
+- The retained `Newspaper` outlier in the test set (row 16) had an absolute error of 0.8993, ranking 18th of
+  40 — middle of the distribution. Keeping it cost nothing measurable.
+- No causal claim is made: the model captures association in observational data.
+
+### Artifact
+
+| | |
+|---|---|
+| **Path** | `models/final_sales_prediction_pipeline.joblib` |
+| **Size** | 452,631 bytes (442.0 KiB) |
+| **Contents** | `{"pipeline": <fitted Pipeline>, "metadata": {...}}` — the **complete** pipeline, preprocessing included |
+| **Metadata** | model type, hyperparameters, feature names, target, training rows, CV and test metrics, training feature ranges, dataset checksum, and scikit-learn / joblib / Python / pandas / numpy versions |
+| **Environment** | Python 3.13.0, scikit-learn 1.9.1, joblib 1.6.0 |
+
+Saving the whole pipeline matters: the estimator alone would silently mis-predict, since it expects
+standardised inputs.
+
+Validated by reloading **in a fresh Python process** with no access to the notebook's state — predictions
+were bit-identical to those taken before saving (max difference 0.000e+00).
+
+### Prediction API
+
+[`src/predict.py`](src/predict.py) — no retraining, no dataset needed, artefact never modified:
+
+```python
+import sys; sys.path.insert(0, "src")
+from predict import predict_sales
+
+predict_sales(tv=150.0, radio=25.0, newspaper=30.0)   # -> 14.0096
+```
+
+```bash
+python src/predict.py --tv 150 --radio 25 --newspaper 30
+python src/predict.py --smoke-test
+```
+
+Also provides `predict_batch()`, `model_metadata()` and `training_ranges()`. Inputs are validated: missing
+values (`None`/NaN), non-numeric strings, booleans, infinities and negative budgets are all rejected with
+specific errors — **10 of 10** invalid-input cases rejected in testing. Floats, integers and numeric strings
+give identical predictions. The CLI exits non-zero with a clear message on bad input, and flags inputs
+outside the training ranges (TV 0.7–296.4, Radio 0.0–49.6, Newspaper 0.3–100.9).
+
+### Reproducibility
+
+**15 of 15** validation checks pass. The notebook runs from a fresh kernel with zero errors, zero cell
+stderr and zero unexecuted cells; refitting reproduces every final metric bit-identically; the split matches
+Phases 2–4; and the raw dataset checksum is unchanged at
+`137f755ad6fd3bc6471085f7631a2fba6c04cb8acd71eaf5cc9af6839d43fdd5`.
+
+### Limitations
+
+These are estimates from a **small benchmark dataset**, and should be read that way:
+
+- The full dataset is **200 observations**; the test set is **40**. Confidence intervals around every figure
+  above are wide, and a different 40-row split would give noticeably different numbers — as this project
+  demonstrated twice over: the hold-out ranked Gradient Boosting above Random Forest and the untuned
+  configuration above the tuned one, and cross-validation reversed both.
+- **The model is not perfect.** It missed one test observation by 4.26 sales units.
+- **These figures do not transfer to future advertising campaigns.** The data has no time dimension, no
+  market or audience information, and no stated units. Nothing here supports extrapolating to campaigns,
+  products or markets unlike those in the dataset.
+- **No causation.** The model describes association between advertising budgets and sales; it cannot say
+  what would happen to sales if a budget were changed.
+
+### Deferred
+
+The dashboard/application phase, which will consume the artefact through `src/predict.py`. It must not
+refit, re-tune or re-evaluate on the test set — the hold-out has now been used, and further measurement
+against it would no longer be unbiased.
+
+---
+
 ## Project Structure
 
 ```
@@ -364,9 +520,11 @@ Task2_Sales_Prediction/
 │   ├── 01_dataset_audit.ipynb        # Phase 1 — audit & EDA
 │   ├── 02_data_preprocessing.ipynb   # Phase 2 — preprocessing & validation
 │   ├── 03_model_training.ipynb       # Phase 3 — baseline & initial models
-│   └── 04_model_validation_tuning.ipynb  # Phase 4 — CV, tuning & stability
+│   ├── 04_model_validation_tuning.ipynb  # Phase 4 — CV, tuning & stability
+│   └── 05_final_evaluation_persistence.ipynb  # Phase 5 — final test & persistence
 ├── src/
-│   └── data_preprocessing.py         # reusable pipeline, imported by every later phase
+│   ├── data_preprocessing.py         # reusable pipeline, imported by every later phase
+│   └── predict.py                    # prediction API for the persisted model
 ├── visualizations/
 │   ├── 02_sales_distribution.png
 │   ├── 03_feature_vs_sales.png
@@ -381,8 +539,13 @@ Task2_Sales_Prediction/
 │   ├── 12_cv_rmse_distribution.png
 │   ├── 13_hyperparameter_comparison.png
 │   ├── 14_train_vs_cv_performance.png
-│   └── 15_outlier_sensitivity.png
-├── models/                           # saved model artefacts (Phase 5 onwards — empty)
+│   ├── 15_outlier_sensitivity.png
+│   ├── 16_final_actual_vs_predicted.png
+│   ├── 17_final_residual_distribution.png
+│   ├── 18_final_residuals_vs_predicted.png
+│   └── 19_final_prediction_errors.png
+├── models/
+│   └── final_sales_prediction_pipeline.joblib   # fitted pipeline + metadata
 ├── README.md
 └── requirements.txt
 ```
@@ -401,9 +564,10 @@ jupyter notebook notebooks/01_dataset_audit.ipynb        # Phase 1
 jupyter notebook notebooks/02_data_preprocessing.ipynb   # Phase 2
 jupyter notebook notebooks/03_model_training.ipynb       # Phase 3
 jupyter notebook notebooks/04_model_validation_tuning.ipynb  # Phase 4 (~7 min: 1,440 model fits)
+jupyter notebook notebooks/05_final_evaluation_persistence.ipynb  # Phase 5
 ```
 
-All four notebooks resolve their paths relative to the repository, contain no absolute paths and run top to
+All five notebooks resolve their paths relative to the repository, contain no absolute paths and run top to
 bottom from a fresh kernel. To use the preprocessing directly:
 
 ```python
