@@ -1,7 +1,11 @@
-# Phase 1 — dataset audit & exploratory data analysis.
 # Versions pinned to what is already installed in the repository's .venv; nothing is upgraded.
+
+# Phase 1 — dataset audit & exploratory data analysis
 pandas==3.0.6
 numpy==2.5.3
 matplotlib==3.11.2
 seaborn==0.13.2
 jupyter==1.1.1
+
+# Phase 2 — preprocessing (train_test_split, ColumnTransformer / Pipeline, StandardScaler)
+scikit-learn==1.9.1
