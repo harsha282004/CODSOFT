@@ -1,0 +1,20 @@
+# Versions pinned to what is already installed in the repository's .venv; nothing is upgraded.
+#
+# Phases 1-2. Packages for the later phases (joblib for persistence, streamlit/plotly for the
+# dashboard) are deliberately not listed yet - they will be added when the phase that needs
+# them is actually implemented.
+
+# Phase 1 - dataset audit & exploratory data analysis
+pandas==3.0.6
+numpy==2.5.3
+matplotlib==3.11.2
+seaborn==0.13.2
+jupyter==1.1.1
+
+# Phase 2 - preprocessing (train_test_split, ColumnTransformer / Pipeline, StandardScaler)
+scikit-learn==1.9.1
+
+# Phase 2 - class-imbalance framework (SMOTE, RandomOverSampler, RandomUnderSampler and the
+# imblearn Pipeline that keeps resampling inside the training fold). Installing this added
+# sklearn-compat as a transitive dependency and upgraded nothing.
+imbalanced-learn==0.14.2
