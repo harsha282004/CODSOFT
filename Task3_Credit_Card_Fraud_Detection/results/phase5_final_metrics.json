@@ -1,0 +1,77 @@
+{
+  "status": "FINAL - locked model evaluated once on the untouched test set",
+  "artifact": "models/final_credit_card_fraud_pipeline.joblib",
+  "artifact_sha256": "fb538208042767a69c8a897e0824784cd513bfcadfa6cb63b10435471c8274f9",
+  "artifact_bytes": 501175,
+  "threshold": 0.5,
+  "decision_rule": "fraud if P(fraud) >= threshold",
+  "test_rows": 56746,
+  "metrics": {
+    "accuracy": 0.9994713283755683,
+    "precision": 0.9452054794520548,
+    "recall": 0.7263157894736842,
+    "f1": 0.8214285714285714,
+    "pr_auc": 0.7932169115114169,
+    "roc_auc": 0.9368632875900365,
+    "tn": 56647,
+    "fp": 4,
+    "fn": 26,
+    "tp": 69,
+    "false_positive_rate": 7.060775626202538e-05,
+    "false_negative_rate": 0.2736842105263158,
+    "specificity": 0.999929392243738,
+    "support_legitimate": 56651,
+    "support_fraud": 95
+  },
+  "bootstrap_95": {
+    "precision": {
+      "low": 0.8860669077757685,
+      "high": 0.9878085512782838,
+      "resamples": 2000
+    },
+    "recall": {
+      "low": 0.6333227848101266,
+      "high": 0.8125,
+      "resamples": 2000
+    },
+    "f1": {
+      "low": 0.7532427449094116,
+      "high": 0.8791208791208791,
+      "resamples": 2000
+    },
+    "pr_auc": {
+      "low": 0.7125470717574811,
+      "high": 0.8676774905864303,
+      "resamples": 2000
+    },
+    "roc_auc": {
+      "low": 0.9013240487492412,
+      "high": 0.9682479382935526,
+      "resamples": 2000
+    }
+  },
+  "test_probability_sha256": "75afbe0155cddb503a5339a80f299f98d83e4f8f3e23c850e8336fe8fa666cae",
+  "phase4_cv": {
+    "pr_auc": {
+      "mean": 0.8385799168511342,
+      "std": 0.044806653415763065
+    },
+    "precision": {
+      "mean": 0.9266673140750907,
+      "std": 0.02388000431843758
+    },
+    "recall": {
+      "mean": 0.777719298245614,
+      "std": 0.09017100132437231
+    },
+    "f1": {
+      "mean": 0.8438666247227161,
+      "std": 0.06061017765335675
+    },
+    "roc_auc": {
+      "mean": 0.9537490205022816,
+      "std": 0.0221950993166145
+    }
+  },
+  "raw_dataset_sha256": "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89"
+}

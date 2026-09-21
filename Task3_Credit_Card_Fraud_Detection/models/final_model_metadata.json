@@ -1,0 +1,93 @@
+{
+  "artifact": "models/final_credit_card_fraud_pipeline.joblib",
+  "artifact_sha256": "fb538208042767a69c8a897e0824784cd513bfcadfa6cb63b10435471c8274f9",
+  "artifact_bytes": 501175,
+  "threshold": 0.5,
+  "decision_rule": "fraud if P(fraud) >= threshold",
+  "feature_columns": [
+    "Time",
+    "V1",
+    "V2",
+    "V3",
+    "V4",
+    "V5",
+    "V6",
+    "V7",
+    "V8",
+    "V9",
+    "V10",
+    "V11",
+    "V12",
+    "V13",
+    "V14",
+    "V15",
+    "V16",
+    "V17",
+    "V18",
+    "V19",
+    "V20",
+    "V21",
+    "V22",
+    "V23",
+    "V24",
+    "V25",
+    "V26",
+    "V27",
+    "V28",
+    "Amount"
+  ],
+  "project": "CodSoft Task 5 - Credit Card Fraud Detection (local Task3_Credit_Card_Fraud_Detection)",
+  "model": "random forest (FixedOrderRandomForestClassifier, src/model_training.py)",
+  "scaling": "standard",
+  "imbalance_strategy": "original",
+  "classifier_params": {
+    "min_samples_leaf": 5,
+    "max_depth": null,
+    "max_features": 0.3,
+    "class_weight": null,
+    "n_estimators": 100
+  },
+  "random_state": 42,
+  "threshold_rule": "Rule 3 - max F1 on out-of-fold training predictions, grid 0.05-0.95, ties to lower",
+  "selected_by": "Rule 2 (highest mean CV PR-AUC, one-standard-error rule, declared simplicity order)",
+  "phase4_candidate_sha256": "88f9eb1d0b01be68e591da0a0cfa448ae70c394b2c55e55a475e671daf13b6da",
+  "cv_metrics_at_0_5": {
+    "pr_auc": {
+      "mean": 0.8385799168511342,
+      "std": 0.044806653415763065
+    },
+    "precision": {
+      "mean": 0.9266673140750907,
+      "std": 0.02388000431843758
+    },
+    "recall": {
+      "mean": 0.777719298245614,
+      "std": 0.09017100132437231
+    },
+    "f1": {
+      "mean": 0.8438666247227161,
+      "std": 0.06061017765335675
+    },
+    "roc_auc": {
+      "mean": 0.9537490205022816,
+      "std": 0.0221950993166145
+    }
+  },
+  "training_rows": 226980,
+  "training_class_counts": {
+    "0": 226602,
+    "1": 378
+  },
+  "raw_dataset_sha256": "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89",
+  "versions": {
+    "python": "3.13.0",
+    "pandas": "3.0.6",
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "imbalanced-learn": "0.14.2",
+    "joblib": "1.6.0",
+    "matplotlib": "3.11.2",
+    "seaborn": "0.13.2"
+  }
+}

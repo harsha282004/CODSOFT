@@ -1,0 +1,12 @@
+# Theme for the Credit Card Fraud Detection dashboard.
+# A light theme, so the project's matplotlib figures (white backgrounds) sit naturally on the pages.
+
+[theme]
+base = "light"
+primaryColor = "#364fc7"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f1f3f5"
+textColor = "#212529"
+
+[browser]
+gatherUsageStats = false

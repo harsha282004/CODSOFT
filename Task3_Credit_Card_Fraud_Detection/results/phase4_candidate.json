@@ -1,0 +1,58 @@
+{
+  "status": "CANDIDATE FINAL MODEL - not final until Phase 5 untouched-test evaluation",
+  "selected_by": "Rule 2 (highest mean CV PR-AUC, one-standard-error rule, declared simplicity order)",
+  "configuration": "RF tuned | standard | original | 100 trees",
+  "model": "random_forest",
+  "scaling": "standard",
+  "imbalance_strategy": "original",
+  "classifier_params": {
+    "min_samples_leaf": 5,
+    "max_depth": null,
+    "max_features": 0.3,
+    "class_weight": null,
+    "n_estimators": 100
+  },
+  "candidate_operating_threshold": 0.5,
+  "threshold_rule": "Rule 3 - max F1 on out-of-fold training predictions, grid 0.05-0.95, ties to lower",
+  "cv": {
+    "n_splits": 5,
+    "shuffle": true,
+    "random_state": 42,
+    "fold_assignment_sha256": "30b0865aacf0b2d4a312088a9efd939619535de9cf19b3732beec0fe849e3347"
+  },
+  "cv_metrics_at_0_5": {
+    "pr_auc": {
+      "mean": 0.8385799168511342,
+      "std": 0.044806653415763065
+    },
+    "precision": {
+      "mean": 0.9266673140750907,
+      "std": 0.02388000431843758
+    },
+    "recall": {
+      "mean": 0.777719298245614,
+      "std": 0.09017100132437231
+    },
+    "f1": {
+      "mean": 0.8438666247227161,
+      "std": 0.06061017765335675
+    },
+    "roc_auc": {
+      "mean": 0.9537490205022816,
+      "std": 0.0221950993166145
+    }
+  },
+  "oof_at_candidate_threshold": {
+    "precision": 0.9274447949526814,
+    "recall": 0.7777777777777778,
+    "f1": 0.8460431654676259,
+    "tp": 294,
+    "fp": 23,
+    "fn": 84,
+    "tn": 226579
+  },
+  "oof_sha256": "8e186991feceb0853c4a0c89aaac88bd4646e87bd0dafc43c2015ab8563b8dea",
+  "training_rows": 226980,
+  "test_set_used": false,
+  "raw_dataset_sha256": "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89"
+}

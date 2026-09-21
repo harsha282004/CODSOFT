@@ -1,1073 +1,1068 @@
 # Credit Card Fraud Detection
 
-**CodSoft Data Science Virtual Internship — Task 5: Credit Card Fraud Detection**
+**Detecting fraudulent card transactions in a dataset with 578 legitimate transactions for every fraud, using a
+leakage-free, fully reproducible machine-learning workflow that runs from the raw data to an interactive
+dashboard.**
 
-> This folder is named `Task3_Credit_Card_Fraud_Detection` as my own project numbering; it corresponds to
+**CodSoft Data Science Virtual Internship · Task 5: Credit Card Fraud Detection** · supervised binary
+classification · fraud detection
+
+![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
+![pandas](https://img.shields.io/badge/pandas-3.0.6-150458?logo=pandas&logoColor=white)
+![NumPy](https://img.shields.io/badge/NumPy-2.5.3-013243?logo=numpy&logoColor=white)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-1.9.1-F7931E?logo=scikitlearn&logoColor=white)
+![imbalanced-learn](https://img.shields.io/badge/imbalanced--learn-0.14.2-4B8BBE)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.64.0-FF4B4B?logo=streamlit&logoColor=white)
+
+> This folder is named `Task3_Credit_Card_Fraud_Detection` under my own project numbering. It corresponds to
 > **CodSoft Task 5: Credit Card Fraud Detection**.
 
-A supervised binary classification project that identifies fraudulent credit card transactions. The
-dataset holds 284,807 real transactions made by European cardholders over two days in September 2013,
-of which **492 — 0.173% — are fraudulent**. That ratio, roughly **578 legitimate transactions for every
-1 fraudulent one**, is the entire difficulty of the problem and the reason the CodSoft brief calls out
-class imbalance explicitly.
+### Final result on the untouched test set
 
-> ### ⚠️ Status: Phase 2 of 6 complete — dataset audit, preprocessing and imbalance framework
->
-> **No model has been trained yet.** A stratified train/test split and a scaling pipeline now exist, and
-> the class-imbalance strategies have been built and measured — but no classifier has been fitted, no
-> evaluation metric has been computed, and **the test set has not been scored.** Every
-> performance-related section below is marked *Planned for later phases* and contains no numbers,
-> because no numbers exist to report. Everything that *is* reported below is reproducible from
-> [`notebooks/01_dataset_audit.ipynb`](notebooks/01_dataset_audit.ipynb) and
-> [`notebooks/02_data_preprocessing.ipynb`](notebooks/02_data_preprocessing.ipynb).
+| PR-AUC | Precision | Recall | F1-score | ROC-AUC | Frauds caught | False alarms |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **0.7932** | **0.9452** | **0.7263** | **0.8214** | 0.9369 | **69 of 95** | **4 of 56,651** |
+
+The model is a random forest (100 trees, `min_samples_leaf=5`, `max_features=0.3`). It was selected by
+cross-validation on the training data only, then locked and evaluated **once** on 56,746 held-out
+transactions.
+
+![Dashboard overview](docs/images/dashboard-overview.png)
 
 ---
 
 ## Table of contents
 
-**Phase 1 — dataset audit & EDA**
-
-| | |
-|---|---|
-| [1. Project Overview](#1-project-overview) | [10. Class-wise Feature Comparison](#10-class-wise-feature-comparison) |
-| [2. Problem Statement](#2-problem-statement) | [11. Correlation Structure](#11-correlation-structure) |
-| [3. Dataset Provenance](#3-dataset-provenance) | [12. Outlier Audit](#12-outlier-audit) |
-| [4. Dataset Structure](#4-dataset-structure) | [13. Data Leakage Audit](#13-data-leakage-audit) |
-| [5. Target and Class Imbalance](#5-target-and-class-imbalance) | [14. Data Integrity Checks](#14-data-integrity-checks) |
-| [6. Data Quality Findings](#6-data-quality-findings) | [15. Visualizations](#15-visualizations) |
-| [7. Feature Audit](#7-feature-audit) | [16. Phase 1 Findings](#16-phase-1-findings) |
-| [8. Transaction Amount Analysis](#8-transaction-amount-analysis) | [17. Phase 1 Limitations](#17-phase-1-limitations) |
-| [9. Transaction Time Analysis](#9-transaction-time-analysis) | |
-
-**Phase 2 — preprocessing & imbalance framework**
-
-| | |
-|---|---|
-| [18. Preprocessing Objective](#18-phase-2--preprocessing-objective) | [22. Preprocessing Pipeline](#22-phase-2--preprocessing-pipeline) |
-| [19. The Duplicate Decision](#19-phase-2--the-duplicate-decision) | [23. Class Imbalance Framework](#23-phase-2--class-imbalance-framework) |
-| [20. Train / Test Split](#20-phase-2--train--test-split-and-stratification) | [24. Leakage Prevention and Validation](#24-phase-2--leakage-prevention-and-validation) |
-| [21. Feature Scaling Strategy](#21-phase-2--feature-scaling-strategy) | [25. Visualizations & Reproducibility](#25-phase-2--visualizations-reproducibility-and-limitations) |
-
-**Project**
-
 | | | |
 |---|---|---|
-| [26. Project Structure](#26-project-structure) | [27. Installation and Reproduction](#27-installation-and-reproduction) | [28. Roadmap — Later Phases](#28-roadmap--later-phases) |
+| [1. Project Overview](#1-project-overview) | [13. Phase 4: Cross-Validation and Tuning](#13-phase-4-cross-validation-and-tuning) | [25. Project Structure](#25-project-structure) |
+| [2. Problem Statement](#2-problem-statement) | [14. Phase 5: Final Model Evaluation](#14-phase-5-final-model-evaluation) | [26. Installation](#26-installation) |
+| [3. CodSoft Task Mapping](#3-codsoft-task-mapping) | [15. Phase 6: Streamlit Dashboard](#15-phase-6-streamlit-dashboard) | [27. Running the Project](#27-running-the-project) |
+| [4. Project Objectives](#4-project-objectives) | [16. Final Model](#16-final-model) | [28. Reproducibility](#28-reproducibility) |
+| [5. Dataset](#5-dataset) | [17. Final Test Results](#17-final-test-results) | [29. Data Leakage Prevention](#29-data-leakage-prevention) |
+| [6. Why Fraud Detection Is Difficult](#6-why-fraud-detection-is-difficult) | [18. Confusion Matrix Analysis](#18-confusion-matrix-analysis) | [30. Limitations](#30-limitations) |
+| [7. Technology Stack](#7-technology-stack) | [19. Precision-Recall Analysis](#19-precision-recall-analysis) | [31. Future Improvements](#31-future-improvements) |
+| [8. Complete Project Workflow](#8-complete-project-workflow) | [20. ROC Analysis](#20-roc-analysis) | [32. Key Learnings](#32-key-learnings) |
+| [9. System Architecture](#9-system-architecture) | [21. Error Analysis](#21-error-analysis) | [33. Phase-by-Phase Summary](#33-phase-by-phase-summary) |
+| [10. Phase 1: Dataset Audit and EDA](#10-phase-1-dataset-audit-and-eda) | [22. Model Persistence](#22-model-persistence) | [34. Results Summary](#34-results-summary) |
+| [11. Phase 2: Preprocessing](#11-phase-2-preprocessing) | [23. Prediction API](#23-prediction-api) | [35. Conclusion](#35-conclusion) |
+| [12. Phase 3: Baseline Modeling](#12-phase-3-baseline-modeling) | [24. Dashboard Usage](#24-dashboard-usage) | |
 
 ---
 
 ## 1. Project Overview
 
-Given 30 numeric attributes of a credit card transaction, predict whether it is **fraudulent (Class 1)**
-or **legitimate (Class 0)**.
+The task: given the 30 numeric attributes of a credit card transaction, predict whether it is **fraudulent**
+(`Class = 1`) or **legitimate** (`Class = 0`).
 
-This is a **supervised binary classification** problem on severely imbalanced data. It is classical
-machine learning — the planned models are logistic regression and random forests, as the CodSoft brief
-names. It is not an AI system, and when results eventually exist they will be estimates from a two-day
-2013 benchmark dataset, not guarantees about live payment traffic.
+The dataset contains 284,807 real transactions made by European cardholders over two days in September 2013.
+Only **492 of them (0.173%) are fraudulent**, and that imbalance shapes the whole project. A model that
+predicts "legitimate" for every transaction is 99.83% accurate and catches no fraud at all. The split, the
+metrics, the handling of imbalance and the choice of threshold all follow from this.
 
-```mermaid
-flowchart TD
-    A["Credit Card Transactions<br/>284,807 rows x 31 columns"] --> B["Dataset Audit<br/>Phase 1 - COMPLETE"]
-    B --> C["Preprocessing & Split<br/>Phase 2 - COMPLETE"]
-    C --> D["Baseline Models<br/>Phase 3 - planned"]
-    D --> E["Class Imbalance Handling<br/>Phase 4 - planned"]
-    E --> F["Final Evaluation & Persistence<br/>Phase 5 - planned"]
-    F --> G["Prediction API & Dashboard<br/>Phase 6 - planned"]
-```
+The project was built in six phases, and each one was validated before the next began:
+
+1. **Audit** the raw data and its provenance.
+2. **Preprocess**: remove duplicates, split, scale, and build an imbalance-handling framework that cannot
+   leak.
+3. **Baseline**: logistic regression and random forest, each under five imbalance strategies.
+4. **Select** the model with cross-validation on training data only. This covers scaling, the imbalance
+   strategy, hyperparameters and the decision threshold.
+5. **Lock** the chosen model, save it, and evaluate it **once** on the untouched test set.
+6. **Present** it in a Streamlit dashboard that loads the saved model. Nothing is retrained.
+
+This is classical machine learning, not an AI system. The results are estimates from a 2013 benchmark dataset
+and say nothing guaranteed about live payment traffic.
 
 ---
 
 ## 2. Problem Statement
 
-The CodSoft task statement:
+The CodSoft task document states:
 
-> Build a machine learning model to identify fraudulent credit card transactions. Preprocess and
-> normalize the transaction data, handle class imbalance issues, and split the dataset into training
-> and testing sets. Train a classification algorithm, such as logistic regression or random forests, to
-> classify transactions as fraudulent or genuine. Evaluate the model's performance using metrics like
-> precision, recall, and F1-score, and consider techniques like oversampling or undersampling for
-> improving results.
+> Build a machine learning model to identify fraudulent credit card transactions. Preprocess and normalize
+> the transaction data, handle class imbalance issues, and split the dataset into training and testing sets.
+> Train a classification algorithm, such as logistic regression or random forests, to classify transactions
+> as fraudulent or genuine. Evaluate the model's performance using metrics like precision, recall, and
+> F1-score, and consider techniques like oversampling or undersampling for improving results.
 
-Phase 1 addresses none of the modelling requirements deliberately. It establishes what the data is
-before anything is fitted to it.
+| Requirement | Where it is addressed |
+|---|---|
+| Preprocess and normalise | Phase 2 builds a `StandardScaler` pipeline; Phase 4 compares three scaling strategies |
+| Handle class imbalance | Phases 2–4 use class weights, random oversampling, random undersampling and SMOTE, always inside the training folds |
+| Train/test split | Phase 2: stratified 80/20 split, `random_state=42` |
+| Logistic regression and random forests | Phases 3–4 cover both families, as baselines and tuned |
+| Precision, recall, F1 | Reported in every phase from Phase 3 on, with PR-AUC as the main ranking metric |
+| Oversampling and undersampling | Phases 3–4, compared using cross-validation on training data only |
 
 ---
 
-## 3. Dataset Provenance
-
-The dataset is the one CodSoft's own task document links to, traced end to end:
+## 3. CodSoft Task Mapping
 
 | | |
 |---|---|
-| **CodSoft source document** | `DATA SCIENCE.pdf`, page 11 — "TASK 5 — CREDIT CARD FRAUD DETECTION — DATASET CLICK HERE" |
-| **Link behind "CLICK HERE"** | https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud |
-| **Kaggle dataset identifier** | `mlg-ulb/creditcardfraud` |
-| **Owner** | Machine Learning Group — ULB (Université Libre de Bruxelles) |
-| **Downloaded archive** | `archive.zip`, 69,155,672 bytes, from Kaggle's public dataset download endpoint |
-| **Archive member** | `creditcard.csv` — the archive's only file |
-| **Stored at** | `dataset/creditcard.csv` |
-| **File size** | 150,828,752 bytes (143.84 MiB) |
+| Internship | CodSoft Data Science Virtual Internship |
+| Official task | **Task 5: Credit Card Fraud Detection** |
+| Local folder | `Task3_Credit_Card_Fraud_Detection` (my own numbering: Task 1 = CodSoft Task 2, Task 2 = CodSoft Task 4) |
+| Dataset | The dataset linked from the CodSoft task document (see section 5) |
+
+---
+
+## 4. Project Objectives
+
+* Verify where the dataset comes from, and audit it before modelling.
+* Build preprocessing that cannot leak test information into training.
+* Compare imbalance strategies fairly inside cross-validation, instead of resampling the whole dataset.
+* Choose the model and decision threshold **from training data only**, using rules declared before any
+  results were seen.
+* Evaluate the locked model once, on data it has never seen.
+* Save a single artefact that holds the model *and* its threshold, and provide a clean prediction API.
+* Present the result in a dashboard where every number can be traced back to a notebook.
+
+---
+
+## 5. Dataset
+
+### Dataset Source
+
+| | |
+|---|---|
+| Name | Credit Card Fraud Detection |
+| Kaggle identifier | [`mlg-ulb/creditcardfraud`](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud) |
+| Owner | Machine Learning Group, Université Libre de Bruxelles (ULB) |
+| Licence | Database Contents Licence (DbCL) 1.0 |
+| Reference | Dal Pozzolo et al., *Calibrating Probability with Undersampling for Unbalanced Classification*, IEEE SSCI 2015 |
+
+### Dataset Provenance
+
+The dataset link was read from the annotation objects of the CodSoft `DATA SCIENCE.pdf` (page 11, "TASK 5:
+CREDIT CARD FRAUD DETECTION"), not copied from the page's visible text. That confirms this is the exact dataset
+CodSoft points to. It was downloaded from Kaggle's public endpoint as a 69,155,672-byte archive whose only member
+is `creditcard.csv`, and the file was extracted without changes.
+
+| | |
+|---|---|
+| File | `dataset/creditcard.csv`: 150,828,752 bytes (143.84 MiB) |
 | **SHA-256** | `76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89` |
-| **Format** | Comma-delimited CSV, plain ASCII, LF line endings, quoted header, unquoted values |
-| **Licence** | Database Contents Licence (DbCL) 1.0, as stated on the Kaggle dataset page |
+| Modification status | **Never modified.** Every notebook checks the checksum at its start and end. |
+| Storage | **Git LFS**, because the file is larger than GitHub's 100 MB object limit. See [Installation](#26-installation). |
 
-The hyperlink was read out of the PDF's annotation objects rather than typed from the visible text, so
-the target is the one CodSoft actually embedded. No substitute, mirror, look-alike Kaggle dataset,
-GitHub CSV or synthetic sample was used.
-
-**What the data is.** Transactions made by European cardholders using credit cards in September 2013,
-covering two days. It is the dataset described in Dal Pozzolo et al., *Calibrating Probability with
-Undersampling for Unbalanced Classification* (IEEE SSCI, 2015), collected in a research collaboration
-between Worldline and the ULB Machine Learning Group.
-
-**Raw data immutability.** The CSV is checksummed at the top of the audit notebook and again at the
-bottom, after every analysis cell has run:
-
-| | |
-|---|---|
-| Initial SHA-256 | `76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89` |
-| Final SHA-256 | `76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89` |
-| **Status** | **UNCHANGED** |
-
-> **Note on repository size.** `creditcard.csv` is 143.84 MiB, which is above GitHub's 100 MiB
-> per-file limit for a normal push. Committing it directly will be rejected unless Git LFS is used or
-> the file is excluded from version control. This is a repository-hosting decision, not a data
-> decision, and is left open.
-
----
-
-## 4. Dataset Structure
-
-**284,807 rows × 31 columns**, 8,829,017 cells. Every column is numeric (30 × `float64`, `Class` as
-`int64`), so there is no categorical encoding work anywhere in this project.
-
-| Column | Type | Description |
-|---|---|---|
-| `Time` | float64 | Seconds elapsed between this transaction and the first transaction in the file. **Not a clock timestamp and not a date.** |
-| `V1` … `V28` | float64 | Anonymised **principal components**. The original features could not be released for confidentiality reasons; these 28 columns are the principal components obtained with PCA. |
-| `Amount` | float64 | Transaction amount. |
-| `Class` | int64 | **Target.** `0` = legitimate, `1` = fraudulent. |
-
-Because `V1`–`V28` are transformed and anonymised, no domain meaning can be attached to any individual
-component. This project describes how they behave and does not speculate about what they represent.
-
-The audit verifies the layout rather than assuming it: the column list is compared against the expected
-`Time` / `V1`–`V28` / `Amount` / `Class` order, and the comparison passes.
-
-**Evidence that the components really are PCA output:**
-
-| Check | Result |
-|---|---|
-| Largest absolute component mean | 4.87 × 10⁻¹⁵ (i.e. all centred on zero) |
-| Standard deviations monotonically decreasing `V1` → `V28` | True — 1.9587 down to 0.3301 |
-| Largest absolute correlation between any two components | ~2 × 10⁻¹⁵ (mutually orthogonal) |
-
----
-
-## 5. Target and Class Imbalance
-
-`Class` is binary, contains both classes, and has no missing values.
-
-| Class | Meaning | Count | Percentage |
-|---|---|---|---|
-| 0 | Legitimate | **284,315** | 99.827251% |
-| 1 | Fraudulent | **492** | 0.172749% |
-| | **Total** | **284,807** | 100% |
-
-| | |
-|---|---|
-| **Imbalance ratio** | **577.8760 legitimate : 1 fraudulent** (≈ 578:1) |
-| Fraud rate | 1 in every 579 transactions |
-| Majority class size | 284,315 rows |
-| Minority class size | 492 rows |
-
-### Why accuracy is the wrong metric here
-
-A model that predicts "legitimate" for every transaction, learns nothing and catches zero fraud still
-scores:
-
-| Metric | Value for the always-legitimate model |
-|---|---|
-| Accuracy | **99.8273%** |
-| Recall | 0% — it misses all 492 frauds |
-| Precision | undefined — it never predicts fraud |
-
-So 99.83% accuracy is the *floor*, not an achievement. The metrics that carry information here are the
-ones the CodSoft brief names, plus one more:
-
-| Metric | What it answers | Why it matters |
-|---|---|---|
-| **Recall** | of all actual frauds, how many were caught? | a missed fraud is a direct financial loss |
-| **Precision** | of all flagged transactions, how many were really fraud? | false alarms block genuine customers and cost review time |
-| **F1-score** | harmonic mean of the two | one number when both errors matter |
-| **PR-AUC** | precision–recall trade-off across thresholds | threshold-free, and not flattered by the huge negative class the way ROC-AUC is |
-
-### Imbalance handling — *planned for later phases*
-
-**No balancing of any kind was applied in Phase 1.** No oversampling, no undersampling, no SMOTE, no
-class weights. This is not an omission: resampling must be applied **inside the training fold only**.
-Resampling the full dataset now and splitting later would put synthetic or duplicated minority rows on
-both sides of the split and produce a test score that cannot be trusted.
-
-Strategies to be compared in **Phase 4**, once a stratified split exists:
-
-- `class_weight="balanced"` on logistic regression and random forest — cheapest option, invents no data
-- `RandomUnderSampler` on the majority class — fast, discards a great deal of legitimate data
-- `RandomOverSampler` on the minority class — duplicates the 492 fraud rows, risks overfitting them
-- `SMOTE` — synthesises new minority points; the features are PCA components, so interpolating between
-  them is at least geometrically coherent, though still synthetic
-- decision-threshold tuning on predicted probabilities — often the largest single lever, and it needs no
-  resampling at all
-
----
-
-## 6. Data Quality Findings
-
-### Missing values
-
-**No missing values were found in the raw dataset** — zero across all 8,829,017 cells, in every one of
-the 31 columns. No imputation strategy is needed anywhere in this project.
-
-Disguised placeholders were checked for separately, since a `NaN` scan would not catch them:
-
-| Check | Result |
-|---|---|
-| Infinite values | 0 |
-| Empty-string cells | 0 |
-| `Amount == -999` (classic sentinel) | 0 |
-| Negative `Amount` | 0 |
-| Negative `Time` | 0 |
-
-### Duplicates
-
-| | |
-|---|---|
-| Exact duplicate rows (extra copies) | **1,081** (0.3796% of the dataset) |
-| Rows involved in a duplicate group | 1,854 (0.6510%) |
-| Distinct duplicated groups | 773 |
-| Largest duplicate group | 18 identical rows |
-| Duplicates by class | 1,822 legitimate · 32 fraudulent |
-| Duplicates on features only, `Class` ignored | 1,081 — **identical to the full-row count** |
-| **Rows with identical features but conflicting labels** | **0** |
-
-That last line matters. Had duplicated feature vectors carried contradictory labels, the dataset would
-contain irreducible label noise that no classifier could resolve. It does not.
-
-Duplicated rows are also overwhelmingly small-value: median amount 15.98 against 22.00 for the dataset
-as a whole, maximum 1,848.06 against 25,691.16.
-
-**Decision: duplicates are retained in Phase 1, not removed.** In a fraud dataset a repeated-looking row
-is not automatically an error — the features are PCA components stored at finite precision, so two
-genuinely distinct small transactions can legitimately collapse onto identical values. Phase 2 will
-decide what to do with them, and the argument for dropping the extra copies is not "duplicates are
-dirty" but "identical rows landing on both sides of the train/test split would leak information and
-inflate the test score." That is a splitting concern and will be handled at the split.
-
----
-
-## 7. Feature Audit
-
-### Scale differences
-
-| Feature group | Columns | Min | Max | Range | Mean | Std |
-|---|---|---|---|---|---|---|
-| `Time` (seconds) | 1 | 0.00 | 172,792.00 | 172,792.00 | 94,813.86 | 47,488.15 |
-| `Amount` (currency) | 1 | 0.00 | 25,691.16 | 25,691.16 | 88.35 | 250.12 |
-| `V1`–`V28` (PCA components) | 28 | −113.74 | 120.59 | 234.33 | ~0 | ~1 |
-
-`Time` spans roughly **737×** the full component range and `Amount` roughly **110×** it. For any
-gradient- or distance-based model — logistic regression above all — those two columns would dominate
-the objective purely through magnitude.
-
-**Implication for Phase 2:** `Time` and `Amount` require scaling. The components are already
-approximately standardised as a by-product of PCA, but scaling them too is harmless and keeps the
-pipeline uniform. **No scaler was fitted in Phase 1** — when one is fitted it must be fitted on the
-training split alone, inside a `Pipeline`.
-
----
-
-## 8. Transaction Amount Analysis
-
-| Statistic | Value |
-|---|---|
-| Count | 284,807 |
-| Mean | 88.3496 |
-| Std | 250.1201 |
-| Min | 0.00 |
-| 25% | 5.60 |
-| **Median** | **22.00** |
-| 75% | 77.1650 |
-| 95% | 365.00 |
-| 99% | 1,017.97 |
-| Max | 25,691.16 |
-| **Skewness** | **16.9777** |
-| Zero-amount transactions | **1,825** (1,798 legitimate · 27 fraudulent) |
-| Negative amounts | 0 |
-
-The distribution is heavily right-skewed: a large mass of small transactions with a thin tail reaching
-past 25,000. The zero-amount transactions appear in both classes and are plausibly card authorisation
-checks rather than corrupt records, so they are kept and noted.
-
-### Amount by class
-
-| | Legitimate | Fraudulent |
-|---|---|---|
-| Count | 284,315 | 492 |
-| Mean | 88.2910 | **122.2113** |
-| **Median** | **22.00** | **9.25** |
-| Std | 250.1051 | 256.6833 |
-| 25% | 5.65 | 1.00 |
-| 75% | 77.05 | 105.89 |
-| Max | **25,691.16** | 2,125.87 |
-
-Stated carefully, because the two facts point in opposite directions: fraudulent transactions have the
-**higher mean** but the **lower median**, and no fraud in this dataset exceeds ~2,126 while legitimate
-transactions reach 25,691. `Amount` alone is therefore not a clean separator in either direction —
-confirmed by its correlation with `Class` of just **+0.0056**.
-
-Where a logarithm appears in a figure it is `log1p` applied **inside the plotting call, for display
-only**. The `Amount` column and the file on disk are untouched.
-
----
-
-## 9. Transaction Time Analysis
-
-`Time` is **not a clock timestamp, not a date and carries no time zone.** It is the number of seconds
-elapsed between each transaction and the first transaction in the file.
-
-| Statistic | Value |
-|---|---|
-| Min | 0 seconds |
-| Max | 172,792 seconds |
-| Mean | 94,813.86 seconds |
-| Median | 84,692 seconds |
-| **Range** | **172,792 seconds = 47.998 hours = 1.9999 days** |
-| Distinct values | 124,592 |
-| File stored in time order | **True** (monotonically non-decreasing) |
-
-| | Legitimate | Fraudulent |
-|---|---|---|
-| Mean `Time` | 94,838.20 | 80,746.81 |
-| Median `Time` | 84,711 | 75,568.5 |
-| Min / Max | 0 / 172,792 | 406 / 170,348 |
-
-Legitimate volume shows a clear daily rhythm with two deep overnight troughs across the two days
-covered. Fraudulent transactions are spread far more evenly and continue through those troughs, so
-fraud makes up a much larger *share* of activity at night even though its absolute count stays low.
-That is a description of this 48-hour window, not a general law about fraud.
-
-The file being in time order is recorded because it means a shuffled random split and a chronological
-split are genuinely different experiments. Phase 2 will use a **stratified random split**, matching the
-CodSoft brief, and will say so explicitly rather than leaving the choice implicit.
-
----
-
-## 10. Class-wise Feature Comparison
-
-For every feature the mean, median and standard deviation were computed per class, along with a
-standardised mean difference (Cohen's *d*) so that features on different scales can be compared.
-
-| Feature | Standardised mean difference (fraud − legitimate) |
-|---|---|
-| `V17` | −8.32 |
-| `V14` | −7.64 |
-| `V12` | −6.50 |
-| `V10` | −5.35 |
-| `V16` | −4.83 |
-| … | … |
-| `Amount` | +0.1356 |
-| `Time` | −0.2968 |
-
-> **This is exploratory description, not feature importance.** A large standardised difference says the
-> two class distributions sit apart on that axis. It does not say the feature is predictive, it ignores
-> correlation between features, and it does not survive contact with a model that sees all features
-> jointly. Nothing here was used to select features, no target encoding was used, and no train/test
-> split exists yet, so no test data influenced any of it.
-
----
-
-## 11. Correlation Structure
-
-Pearson correlation across all 31 columns. Against the binary `Class` this is a point-biserial
-correlation: a **linear, marginal, one-feature-at-a-time** association.
-
-| Feature | Correlation with `Class` |
-|---|---|
-| `V17` | −0.3265 |
-| `V14` | −0.3025 |
-| `V12` | −0.2606 |
-| `V10` | −0.2169 |
-| `V16` | −0.1965 |
-| `V3` | −0.1930 |
-| `V7` | −0.1873 |
-| `V11` | +0.1549 |
-| `V4` | +0.1334 |
-| `Amount` | **+0.0056** |
-| `Time` | **−0.0123** |
-
-Strongest feature-to-feature correlations, all of which involve `Time` or `Amount`:
-
-| Pair | \|r\| |
-|---|---|
-| `V2` ~ `Amount` | 0.5314 |
-| `Time` ~ `V3` | 0.4196 |
-| `V7` ~ `Amount` | 0.3973 |
-| `V5` ~ `Amount` | 0.3864 |
-| `V20` ~ `Amount` | 0.3394 |
-
-The 28 principal components are mutually near-orthogonal by construction — the largest absolute
-correlation between any two of them is ~2 × 10⁻¹⁵ — which is exactly what PCA guarantees.
-
-> Correlation with `Class` is **not** causation and **not** importance. A feature with near-zero
-> marginal correlation can still be valuable in combination with others. **No feature was removed on
-> the strength of a correlation in Phase 1.**
-
----
-
-## 12. Outlier Audit
-
-The 1.5 × IQR rule was applied to all 30 features as a **measuring instrument, not a cleaning step**.
-
-| | |
-|---|---|
-| Total outlier cells across all features | **370,372** |
-| Rows flagged on at least one feature | **138,473 — 48.62% of the dataset** |
-| Fraudulent rows flagged | **477 of 492 — 96.95% of all fraud** |
-| Legitimate rows flagged | 137,996 of 284,315 — 48.54% |
-| Feature with zero outliers | `Time` |
-| Feature with most outliers | `V27` — 39,163 (13.75%) |
-| `Amount` outliers (above the 184.5125 upper fence) | 31,904 (11.20%), of which 91 are fraudulent |
-
-The flags concentrate sharply in the minority class:
-
-| Feature | % of fraud flagged | % of legitimate flagged | Concentration |
-|---|---|---|---|
-| `V14` | **87.40%** | 4.83% | +82.58 pp |
-| `V12` | **83.13%** | 5.25% | +77.88 pp |
-| `V27` | 69.92% | 13.65% | +56.27 pp |
-| `V11` | 59.76% | 0.17% | +59.59 pp |
-| `V28` | 55.28% | 10.58% | +44.71 pp |
-
-### Decision: outliers are retained
-
-"Removing outliers" here would mean discarding roughly half the dataset, including 477 of the 492
-fraudulent transactions. These flags are not errors — for heavy-tailed PCA components and a
-right-skewed `Amount`, the 1.5 × IQR fence is simply narrow. More importantly, in fraud detection
-extremity in the feature space is **part of the signal being searched for**. Deleting it would remove
-the thing the model is supposed to learn.
-
-**Outliers will be retained unless later evidence supports a specific, principled treatment** — and if
-any is ever applied it must be fitted on the training split only.
-
----
-
-## 13. Data Leakage Audit
-
-All 10 preliminary leakage checks pass:
-
-| Check | Result |
-|---|---|
-| Target column is exactly `Class` | PASS |
-| No other column name suggests an outcome or label | PASS |
-| No feature is a perfect copy of the target | PASS |
-| No feature correlates with the target above \|r\| 0.95 (strongest is `V17` at 0.3265) | PASS |
-| No feature separates the classes perfectly (disjoint value ranges) | PASS |
-| No duplicated feature column | PASS |
-| No identical feature rows carrying conflicting labels | PASS |
-| No train/test split has been performed in this phase | PASS |
-| No scaler, encoder or resampler has been fitted in this phase | PASS |
-| `Class` was not used to construct any feature | PASS |
-
-Every feature is either a PCA component of the original transaction attributes or one of `Time` /
-`Amount` — all known at the moment the transaction occurs, so no post-outcome information is present.
-
-### Safeguards recorded for later phases
-
-Leakage in this project will come from process, not from the columns. These are commitments Phase 2
-onwards must honour:
-
-1. **Split first**; fit every transformation afterwards, on the training split alone.
-2. Every scaler lives inside a scikit-learn `Pipeline` so `fit` can never touch the test fold.
-3. Resampling (SMOTE, over/under-sampling) is applied **only to the training fold** — a resampled test
-   set reports a fraud rate that does not exist in reality.
-4. Threshold selection and hyperparameter tuning use cross-validation on the training data, never the
-   test set.
-5. The split is **stratified** on `Class`; with only 492 positives, an unstratified split can leave a
-   fold with a badly distorted fraud rate.
-6. If the extra copies of duplicated rows are dropped, they are dropped **before** the split.
-
----
-
-## 14. Data Integrity Checks
-
-The notebook runs an automated assertion suite and reports the phase as failed if any check returns
-`False`. **22 of 22 checks passed.**
-
-| # | Check | Status |
-|---|---|---|
-| 1 | Dataset file still exists | PASS |
-| 2 | File size unchanged | PASS |
-| 3 | SHA-256 unchanged after the full audit | PASS |
-| 4 | Dataset loaded successfully | PASS |
-| 5 | Row count is positive | PASS |
-| 6 | Column count is positive | PASS |
-| 7 | Row count is 284,807 as expected | PASS |
-| 8 | Column count is 31 as expected | PASS |
-| 9 | Target column `Class` present | PASS |
-| 10 | All expected feature columns present, in order | PASS |
-| 11 | No duplicate column names | PASS |
-| 12 | All 28 components `V1`–`V28` present | PASS |
-| 13 | Target is binary | PASS |
-| 14 | Target contains both classes | PASS |
-| 15 | Target has no missing values | PASS |
-| 16 | All columns are numeric | PASS |
-| 17 | No missing values anywhere | PASS |
-| 18 | No infinite values anywhere | PASS |
-| 19 | `Amount` is non-negative throughout | PASS |
-| 20 | `Time` is non-negative throughout | PASS |
-| 21 | Class counts sum to the row count | PASS |
-| 22 | No leakage check failed | PASS |
-
----
-
-## 15. Visualizations
-
-Seven figures, written to [`visualizations/`](visualizations/) by the audit notebook and verified to
-exist on disk at the end of it.
-
-| File | Visualization | Purpose |
-|---|---|---|
-| [`01_class_distribution.png`](visualizations/01_class_distribution.png) | Class distribution | Legitimate vs fraudulent counts on linear and log scales, counts labelled directly — makes the 578:1 imbalance visually unmissable |
-| [`02_amount_distribution.png`](visualizations/02_amount_distribution.png) | Amount distribution | Raw histogram plus a `log1p` view (display only), showing the extreme right skew |
-| [`03_amount_by_class.png`](visualizations/03_amount_by_class.png) | Amount by class | Box plot and per-class cumulative distribution — fraud's higher mean but lower median |
-| [`04_time_distribution.png`](visualizations/04_time_distribution.png) | Time distribution | Transactions per elapsed hour, legitimate and fraudulent on separate panels sharing an x-axis |
-| [`05_feature_scale_summary.png`](visualizations/05_feature_scale_summary.png) | Feature scale summary | Per-component standard deviation and observed range for `V1`–`V28` — the PCA signature |
-| [`06_correlation_heatmap.png`](visualizations/06_correlation_heatmap.png) | Correlation structure | Full 31×31 correlation matrix plus the 15 strongest associations with `Class` |
-| [`07_class_separation.png`](visualizations/07_class_separation.png) | Class separation | Class-wise densities of the four most separated components — descriptive, not importance |
-
-Design notes, since imbalance makes several default chart choices actively misleading here:
-
-- Class counts are shown on **two scales**, because a linear chart hides the fraud bar entirely and a
-  log chart alone understates the gap to the eye.
-- Fraud is never stacked onto legitimate counts on a shared y-axis — 492 against 284,315 cannot share
-  a scale and stay readable, so those comparisons use separate panels or per-class normalisation.
-- The two class colours are fixed across every figure and were checked for colour-vision-deficiency
-  separation before use (worst case protanopia ΔE 30.1, normal vision ΔE 37.8).
-- In `07`, out-of-window points are **omitted rather than clipped** — clipping piles the tail into the
-  edge bin and invents a spike that is not in the data. Each panel states what share of each class it
-  displays.
-
----
-
-## 16. Phase 1 Findings
-
-**Provenance.** The dataset is the exact one linked from page 11 of CodSoft's `DATA SCIENCE.pdf`:
-Kaggle `mlg-ulb/creditcardfraud`. Downloaded as a 69,155,672-byte archive whose only member is
-`creditcard.csv`, extracted unmodified to `dataset/creditcard.csv` (150,828,752 bytes). SHA-256 recorded
-before the audit and re-verified after it: **unchanged**.
-
-**Structure.** 284,807 rows × 31 columns, all numeric. Layout confirmed as `Time`, `V1`–`V28`,
-`Amount`, `Class` — checked, not assumed. `V1`–`V28` confirmed as PCA output by their zero means,
-monotonically decreasing standard deviations and mutual orthogonality.
-
-**Imbalance.** 284,315 legitimate (99.827251%) against 492 fraudulent (0.172749%) — **577.8760:1**. An
-always-legitimate model scores 99.8273% accuracy while catching none of the 492 frauds, so accuracy is
-unusable as a headline metric.
-
-**Quality.** No missing values, no infinities, no placeholders, no negative amounts. 1,081 exact
-duplicate rows (0.3796%), none carrying a conflicting label — retained for now.
-
-**Features.** `Time` is a 47.998-hour elapsed-seconds counter, not a timestamp. `Amount` is heavily
-right-skewed (skewness 16.98, median 22.00, mean 88.35, max 25,691.16). `Time` and `Amount` sit on
-scales 110–737× wider than the components, so scaling is required.
-
-**Association.** Strongest marginal associations with `Class` are `V17` (−0.3265), `V14` (−0.3025),
-`V12` (−0.2606). `Amount` (+0.0056) and `Time` (−0.0123) are essentially uncorrelated on their own.
-None approaches a level that would signal leakage.
-
-**Outliers.** 138,473 rows (48.62%) flagged by the IQR rule, including 96.95% of all fraud. Flags
-concentrate in the minority class. **Retained.**
-
-**Leakage.** All 10 checks pass. No split, scaler, encoder or resampler was fitted.
-
-**Integrity.** 22 of 22 automated checks pass, including the before/after checksum comparison.
-
-### What this phase establishes
-
-The data is clean in the conventional sense — complete, numeric, well-formed, with a verified provenance
-chain back to the CodSoft source document. The difficulty in this problem is **not dirt**. It is the
-578:1 imbalance, the `Amount`/`Time` scale mismatch against the principal components, and a minority
-class of only 492 examples to learn from.
-
----
-
-## 17. Phase 1 Limitations
-
-- `V1`–`V28` are anonymised, so no domain interpretation of any individual component is possible. This
-  project describes their behaviour and stops there.
-- Everything reported is **descriptive and marginal**. Nothing here establishes that any feature is
-  predictive, because no model has been fitted.
-- All statistics were computed on the full dataset. That is legitimate for an audit, but it means none
-  of them may be reused as a fitted preprocessing parameter later — those must be re-derived from the
-  training split alone.
-- The 48-hour window is a single short recording from September 2013 in one region. Conclusions about
-  the *timing* of fraud describe this window and should not be generalised.
-- **No model results of any kind exist yet.** Any number in this README describing model performance
-  would be fabricated; there are none.
-
----
-
-## 18. Phase 2 — Preprocessing Objective
-
-Phase 1 established what the data is. Phase 2 builds the foundation the modelling phases stand on: a
-stratified train/test split, a scaling pipeline fitted on training data alone, and a *framework* for
-handling class imbalance safely.
-
-**No classifier was trained.** No metric was computed, no model was selected, tuned or persisted, and
-the test set has not been scored. Resamplers were constructed and their effect on the training
-distribution was measured, but nothing was fitted to predict anything.
-
-Everything below is reproducible from [`notebooks/02_data_preprocessing.ipynb`](notebooks/02_data_preprocessing.ipynb)
-and implemented in [`src/data_preprocessing.py`](src/data_preprocessing.py).
-
----
-
-## 19. Phase 2 — The Duplicate Decision
-
-Phase 1 found 1,081 exact duplicate rows and deliberately deferred the decision. **Decision: the extra
-copies are dropped, before the split.**
-
-| | |
-|---|---|
-| Rows before deduplication | 284,807 |
-| Extra copies dropped | **1,081** (1,062 legitimate · 19 fraudulent) |
-| **Rows after deduplication** | **283,726** |
-| Legitimate | 283,253 (99.833290%) |
-| Fraudulent | **473** (0.166710%) |
-| Imbalance ratio | **598.8436 : 1** (was 577.8760 : 1) |
-
-The reason is not that duplicates are dirty — Phase 1 established they carry no conflicting labels and
-are plausible collisions of small transactions in a finite-precision PCA space. The reason is **split
-contamination**: an identical row appearing in both the training and the test set means the model is
-scored on a row it has already memorised.
-
-The cost is stated rather than glossed over: deduplication removes **19 of the 492 fraud examples** and
-pushes the imbalance from 577.88:1 to 598.84:1. It is still the right trade — a slightly harder honest
-problem beats an easier dishonest one. Dropping *after* the split would not work, since it would leave
-the copies that had already crossed the boundary.
-
-The reasoning is recorded in the module itself as `dp.DUPLICATE_DECISION`, so it travels with the code.
-
----
-
-## 20. Phase 2 — Train / Test Split and Stratification
-
-**80/20, stratified on `Class`, `random_state=42`.** With 473 positives, an 80/20 draw leaves ~95 frauds
-in the test set — few, but enough for precision/recall to mean something. A smaller test fraction would
-make those metrics too noisy to act on; a larger one would starve training of the minority class.
-
-| | Rows | Legitimate | Fraudulent | Fraud % | Ratio |
-|---|---|---|---|---|---|
-| Full (deduplicated) | 283,726 | 283,253 | 473 | 0.166710% | 598.84 : 1 |
-| **Train** | **226,980** | 226,602 | **378** | 0.166534% | 599.48 : 1 |
-| **Test** | **56,746** | 56,651 | **95** | 0.167413% | 596.33 : 1 |
-
-### Stratification verified, not assumed
-
-| Split | Fraud rate | Deviation from full dataset |
-|---|---|---|
-| Full dataset | 0.166710% | — |
-| Train | 0.166534% | **−0.000176 pp** |
-| Test | 0.167413% | **+0.000703 pp** |
-
-The notebook also demonstrates what an **unstratified** split of the same data would have produced,
-varying only the seed. The test fraud count swings substantially from seed to seed; with only ~95
-positives expected, that swing moves recall by several points for reasons that have nothing to do with
-the model. The unstratified split is computed purely to show the risk and is discarded immediately.
-
----
-
-## 21. Phase 2 — Feature Scaling Strategy
-
-Scale statistics were **re-measured on the training split only**. Phase 1 measured the full dataset,
-which was correct for an audit but is not a legitimate basis for a preprocessing decision — choosing a
-transformation from full-dataset statistics is a mild form of leakage, and it costs nothing to avoid.
-
-### What is not a judgement call
-
-| Feature group | Training range | vs component range |
-|---|---|---|
-| `Time` | 172,792 | **1,534×** |
-| `Amount` | 25,691 | **175×** |
-| `V1`–`V28` | 112.64 | 1× |
-
-Those multiples are larger than the 737× and 110× Phase 1 reported, for a mundane reason: the two rows
-holding the most extreme component values (`V5` at −113.74, `V7` at +120.59) happen to sit in the test
-split, so the *training* component range is 112.64 rather than 234.33. The conclusion is unaffected and
-only gets stronger.
-
-For logistic regression — the model the CodSoft brief names first — coefficients are fitted against an
-L2 penalty that treats every coefficient the same, and gradient descent on wildly different scales
-converges badly. **`Time` and `Amount` must be scaled.** Every strategy implemented does it.
-
-### What genuinely is a judgement call: `V1`–`V28`
-
-The components are zero-centred but **not** unit-variance — their standard deviations fall
-monotonically from **1.9473** (`V1`) to **0.3257** (`V28`), a spread of about **6.0×**. Two defensible
-readings:
-
-| Leave them unscaled | Standardise them |
-|---|---|
-| The 6.0× spread *is* the PCA variance ordering — real information about how much of the original data each component carries | L2 regularisation penalises all coefficients equally, so a low-variance component needs a larger coefficient for the same effect and is penalised harder for it |
-| 6.0× is small next to the 1,534× mismatch that actually needed fixing | That penalty asymmetry is an artefact of the units, not a property of the data |
-| Preserves the geometry SMOTE interpolates through | Puts every feature on equal footing before distance-based resampling |
-
-**Resolution: both are implemented, and the choice is deliberately left open.** It cannot be settled
-without fitting a model, and settling it by peeking at the test set would destroy the value of the
-split.
-
-| Strategy | What it does | Status |
-|---|---|---|
-| **`"standard"`** | `StandardScaler` on all 30 features | **default** |
-| `"minimal"` | `StandardScaler` on `Time` and `Amount`; `V1`–`V28` passed through | implemented |
-| `"log_amount"` | `log1p(Amount)` first, then `StandardScaler` on all 30 | implemented |
-
-`"standard"` is the default because regularised logistic regression is the primary planned model and
-uniform treatment under the penalty is the safer default there; tree-based models are scale-invariant
-and unaffected either way. `"log_amount"` exists because `Amount` has a **skewness of 16.98** — scaling
-recentres it but leaves the shape untouched — and `log1p` is safe since Phase 1 confirmed `Amount ≥ 0`.
-
-A `RobustScaler` would be a fourth reasonable candidate given the heavy tails; it is deliberately left
-out to keep the Phase 3 comparison small enough to be meaningful. **The empirical comparison between
-these strategies is planned for Phase 3, by cross-validation on the training split only.**
-
----
-
-## 22. Phase 2 — Preprocessing Pipeline
-
-All preprocessing logic lives in [`src/data_preprocessing.py`](src/data_preprocessing.py) rather than
-in a notebook, so Phases 3–6 import the *same* definitions instead of re-deriving a split that might
-differ.
-
-### The order, and why it is not negotiable
+The repository's `.gitattributes` contains exactly one LFS rule:
 
 ```
-RAW DATA (284,807 rows, read-only)
-      |
-      +--> drop exact duplicates            (before the split, or copies cross the boundary)
-      |
-      +--> STRATIFIED TRAIN / TEST SPLIT    <-- everything below sees only one side at a time
-      |
-      +--> FIT preprocessing on X_train ONLY
-      |
-      +--> TRANSFORM X_train
-      |
-      +--> TRANSFORM X_test                 (transform only - never fit)
-      |
-      +--> OPTIONAL RESAMPLING of the TRAINING data only
-      |
-      +--> MODEL TRAINING                   (Phase 3 - not yet implemented)
+Task3_Credit_Card_Fraud_Detection/dataset/creditcard.csv filter=lfs diff=lfs merge=lfs -text
 ```
 
-Every arrow pointing *into* the test set is a `transform`. None is a `fit`.
+### Dataset Size
 
-### Module API
+The file has **284,807 rows and 31 columns**. Every column is numeric, there are **no missing values**, and
+1,081 rows are exact duplicates.
 
-| Function | Purpose |
+### Features
+
+| Column | Description |
 |---|---|
-| `load_data(drop_duplicates=True)` | Verify checksum, read CSV, validate layout, drop duplicates |
-| `validate_raw_dataframe(df)` | Raise on wrong columns, wrong row count, non-numeric, NaN, infinity, non-binary target |
-| `split_features_target(df)` | Separate `X` from `Class`; raises if the target reaches `X` |
-| `split_data(df)` | Stratified 80/20 split, returns a frozen `SplitData` object |
-| `build_preprocessor(strategy)` | Unfitted `ColumnTransformer` — `"standard"` / `"minimal"` / `"log_amount"` |
-| `build_resampler(strategy)` | Unfitted sampler, or `None` for strategies that change no rows |
-| `validate_split` · `validate_preprocessor` · `validate_resampling` | Return `(check, passed)` pairs |
-| `sha256_of_file` · `verify_raw_dataset_integrity` | Prove the raw CSV was not touched |
+| `Time` | Seconds between this transaction and the first transaction in the file (0 to 172,792, about 48 hours). **This is not a clock time or a date.** |
+| `V1` … `V28` | Anonymised **principal components** that the dataset owners produced with PCA. The original features were withheld for confidentiality, so no individual component has a known meaning. |
+| `Amount` | Transaction amount (0 to 25,691.16, heavily right-skewed). |
 
-No classifier is defined or trained in the module, and nothing in it writes to `dataset/`.
+### Target Variable
 
-### Transformation result
+`Class`: `1` means fraudulent and `0` means legitimate.
+
+### Class Distribution
+
+| Class | Count | Share |
+|---|---:|---:|
+| Legitimate (0) | 284,315 | 99.827251% |
+| Fraudulent (1) | **492** | **0.172749%** |
+| **Imbalance** | **577.88 : 1** | 1 fraud in every 579 transactions |
+
+![Class distribution](visualizations/01_class_distribution.png)
+
+---
+
+## 6. Why Fraud Detection Is Difficult
+
+### Class Imbalance
+
+When only 0.17% of transactions are fraud, a model can minimise its training error by never predicting fraud.
+The imbalance also makes every fraud-class metric noisy. The test set holds only **95 frauds**, so a single
+transaction moves recall by about one percentage point.
+
+### False Positives
+
+A **false positive** is a legitimate transaction flagged as fraud. The payment is blocked or challenged, the
+customer is inconvenienced, and an analyst has to review it.
+
+### False Negatives
+
+A **false negative** is a fraudulent transaction the model lets through, so the fraudulent payment completes.
+
+Which error costs more depends on the business context: the money lost, the effect on customers and how many
+cases analysts can review. This dataset contains none of that information, so the project does **not** assume a
+cost ratio. It reports both kinds of error, and it chooses the threshold by a transparent rule: maximum
+out-of-fold F1.
+
+### Why Accuracy Is Misleading
+
+| Model | Accuracy | Frauds caught |
+|---|---:|---:|
+| Predict "legitimate" for everything (test set) | **99.8326%** | **0 of 95** |
+| Final model (test set) | 99.9471% | 69 of 95 |
+
+The useless model is only 0.11 percentage points less accurate. Accuracy is reported but never used for a
+decision. **PR-AUC, precision, recall and F1** are used instead.
+
+---
+
+## 7. Technology Stack
+
+| Area | Tools |
+|---|---|
+| Language | Python 3.13.0 |
+| Data | pandas 3.0.6, NumPy 2.5.3, SciPy 1.18.1, pyarrow 25.0.1 |
+| Machine learning | scikit-learn 1.9.1, imbalanced-learn 0.14.2 |
+| Persistence | joblib 1.6.0 |
+| Visualisation | Matplotlib 3.11.2, seaborn 0.13.2, Plotly 7.1.0 |
+| Dashboard | Streamlit 1.64.0 |
+| Notebooks | Jupyter 1.1.1 |
+| Version control | Git, plus Git LFS for the dataset |
+
+All versions are pinned in [`requirements.txt`](requirements.txt).
+
+---
+
+## 8. Complete Project Workflow
+
+```mermaid
+flowchart LR
+    P1["Phase 1<br/>Audit and EDA"] --> P2["Phase 2<br/>Preprocessing<br/>and split"]
+    P2 --> P3["Phase 3<br/>Baselines<br/>(holdout record)"]
+    P3 --> P4["Phase 4<br/>Training-only CV<br/>model selection"]
+    P4 --> P5["Phase 5<br/>Lock, persist,<br/>evaluate once"]
+    P5 --> P6["Phase 6<br/>Streamlit<br/>dashboard"]
+```
+
+| Phase | Notebook | Output |
+|---|---|---|
+| 1 | [`01_dataset_audit.ipynb`](notebooks/01_dataset_audit.ipynb) | Audit, EDA, figures 01–07 |
+| 2 | [`02_data_preprocessing.ipynb`](notebooks/02_data_preprocessing.ipynb) | [`src/data_preprocessing.py`](src/data_preprocessing.py), figures 08–10 |
+| 3 | [`03_model_training.ipynb`](notebooks/03_model_training.ipynb) | [`src/model_training.py`](src/model_training.py), figures 11–16 |
+| 4 | [`04_model_validation_tuning.ipynb`](notebooks/04_model_validation_tuning.ipynb) | [`results/phase4_*`](results/), figures 17–24 |
+| 5 | [`05_final_model_evaluation.ipynb`](notebooks/05_final_model_evaluation.ipynb) | [`models/`](models/), [`src/predict.py`](src/predict.py), [`results/phase5_*`](results/), figures 25–27 |
+| 6 | None | [`app.py`](app.py), [`tests/test_dashboard.py`](tests/test_dashboard.py), [`docs/images/`](docs/images/) |
+
+---
+
+## 9. System Architecture
+
+```mermaid
+flowchart TD
+    A["Raw dataset<br/>dataset/creditcard.csv<br/>284,807 rows, SHA-256 verified"] --> B["Audit and EDA<br/>Phase 1"]
+    B --> C["Preprocessing<br/>duplicates removed: 283,726 rows<br/>src/data_preprocessing.py"]
+    C --> D["Stratified train/test split<br/>80/20, random_state=42"]
+    D -->|"226,980 training rows"| E["Training-only 5-fold CV<br/>StratifiedKFold, Phase 4"]
+    D -->|"56,746 test rows<br/>kept sealed"| K
+    E --> F["Inside every fold:<br/>StandardScaler, then imbalance handling, then classifier"]
+    F --> G["Out-of-fold evaluation<br/>PR-AUC and threshold analysis"]
+    G --> H["Candidate selection<br/>one-standard-error rule"]
+    H --> I["Final model<br/>fitted once on all training rows"]
+    I --> J["Saved pipeline<br/>models/final_credit_card_fraud_pipeline.joblib<br/>scaler + forest + threshold 0.50"]
+    J --> K["Final test evaluation<br/>once, Phase 5"]
+    J --> L["Prediction API<br/>src/predict.py"]
+    L --> M["Streamlit dashboard<br/>app.py"]
+```
+
+At prediction time the path is short, and there is one source of truth:
+
+```
+app.py  ──►  src/predict.py  ──►  saved pipeline (StandardScaler → random forest)  ──►  P(fraud)  ──►  P(fraud) ≥ 0.50 ?
+```
+
+---
+
+## 10. Phase 1: Dataset Audit and EDA
+
+**Objective:** establish exactly what the data is before modelling it.
+
+**Implementation:** [`notebooks/01_dataset_audit.ipynb`](notebooks/01_dataset_audit.ipynb), which includes
+22 automated integrity checks.
+
+**Findings:**
+
+| Check | Result |
+|---|---|
+| Layout | `Time`, `V1`–`V28`, `Amount`, `Class`, verified against the file rather than assumed |
+| Missing values | **0** in 8,829,017 cells. No infinities, empty strings or sentinel values. |
+| Duplicates | **1,081** exact duplicate rows (0.3796%) in 773 groups. **0** of the groups have conflicting labels. |
+| Imbalance | 284,315 legitimate and 492 fraud: **577.88 : 1** |
+| PCA evidence | Component means are about 0. Standard deviations fall steadily from 1.9587 (`V1`) to 0.3301 (`V28`). The components are mutually uncorrelated. |
+| `Amount` | Median 22.00, mean 88.35, maximum 25,691.16, **skewness 16.98**. Fraud has a *lower* median (9.25 vs 22.00) but a higher mean (122.21 vs 88.29). |
+| `Time` | 0 to 172,792 s, or 47.998 hours. Legitimate volume follows a day/night rhythm; fraud is spread more evenly. |
+| Scale | `Time` spans 737 times the component range and `Amount` 110 times, so scaling is required. |
+| Correlation with `Class` | Strongest: `V17` −0.3265, `V14` −0.3025, `V12` −0.2606, `V10` −0.2169. `Amount` +0.0056, `Time` −0.0123. |
+| Outliers (1.5 × IQR) | 138,473 rows (48.62%) are flagged, including **477 of the 492 frauds**. Outliers concentrate in fraud: `V14` flags 87.40% of fraud but 4.83% of legitimate transactions. |
+| Leakage | 10/10 checks pass. No feature copies, encodes or perfectly separates the target. |
+
+**Important decisions:**
+
+* **Outliers were kept.** Removing them would discard half the data and 97% of the fraud. In fraud detection,
+  extreme values *are* the signal.
+* **Duplicates were left for Phase 2**, where the decision could take the split into account.
+* `V1`–`V28` are described only as anonymised components. No meanings were invented for them.
 
 | | |
 |---|---|
-| Fitted on | **226,980 training rows** |
-| Input features | 30 |
-| Output features | **30** — no expansion, no encoding, no derived feature |
-| NaN introduced | 0 |
-| Infinities introduced | 0 |
-| Transformed train mean / std | largest \|mean\| 1.52 × 10⁻¹⁶ · std 1.000002 |
-| Transformed test mean / std | largest \|mean\| 0.011449 · std 0.983941 – 1.109790 |
+| ![Amount by class](visualizations/03_amount_by_class.png) | ![Class separation](visualizations/07_class_separation.png) |
 
-That last row is the point: test statistics are **near but not equal to** 0 and 1. Had they come out
-exactly 0 and 1, the scaler would have been fitted on them.
+![Correlation heatmap](visualizations/06_correlation_heatmap.png)
 
 ---
 
-## 23. Phase 2 — Class Imbalance Framework
+## 11. Phase 2: Preprocessing
 
-The training split holds **378 fraudulent** rows against **226,602 legitimate** — 599.48 : 1. Five
-candidate approaches are documented and available through `dp.build_resampler`.
+**Objective:** a reusable preprocessing foundation that cannot leak.
 
-| | Strategy | Training rows | Class 0 | Class 1 | Minority % |
-|---|---|---|---|---|---|
-| **A** | Original (no resampling) | 226,980 | 226,602 | 378 | 0.1665% |
-| **B** | Class weights | 226,980 | 226,602 | 378 | 0.1665% — reweights the *loss*, not the rows |
-| **C** | Random oversampling | **453,204** | 226,602 | 226,602 | 50.00% |
-| **D** | SMOTE | **453,204** | 226,602 | 226,602 | 50.00% |
-| **E** | Random undersampling | **756** | 378 | 378 | 50.00% |
+**Implementation:** [`notebooks/02_data_preprocessing.ipynb`](notebooks/02_data_preprocessing.ipynb) and
+[`src/data_preprocessing.py`](src/data_preprocessing.py).
 
-Reading the table honestly:
+**Duplicate handling.** The 1,081 extra copies (1,062 legitimate, **19 fraudulent**) are dropped **before the
+split**, which leaves **283,726 rows** (283,253 legitimate, 473 fraud, an imbalance of **598.84 : 1**). They
+are dropped because an identical row on both sides of the split would let the test score reward memorisation,
+not because they are bad data: none of them carries a conflicting label.
 
-- **A and B change no rows at all.** `build_resampler` returns `None` for both; class weighting is a
-  classifier argument applied in Phase 3, not a preprocessing step.
-- **Oversampling and SMOTE** both double the training set to 453,204 rows, entirely minority rows.
-  Oversampling repeats the same 378 frauds ~600× each; SMOTE interpolates new points. Same shape, very
-  different content.
-- **Undersampling** collapses 226,980 rows to **756**, discarding 226,224 legitimate transactions —
-  99.83% of the majority class — to reach balance.
+**Stratified split:** 80/20, stratified on `Class`, `random_state=42`.
 
-### The evaluation principle, recorded now so it is not rationalised later
+| | Rows | Legitimate | Fraudulent | Fraud % |
+|---|---:|---:|---:|---:|
+| Train | 226,980 | 226,602 | 378 | 0.166534% |
+| **Test** | **56,746** | **56,651** | **95** | 0.167413% |
 
-> **A strategy is not better because it produces a 50/50 training set.**
+Both splits keep a fraud rate close to the deduplicated dataset's. The notebook also shows how far an
+*unstratified* split of the same data drifts.
 
-All three row-changing strategies produce perfect balance. That is a property of the *training input*,
-not evidence about output quality. The comparison that decides anything happens in **Phase 4**, judged
-on **precision · recall · F1-score · confusion matrix · PR-AUC · ROC-AUC where appropriate** — and never
-on accuracy, which Phase 1 showed sits at 99.83% for a model that catches no fraud at all.
+**Scaling.** `Time` and `Amount` have to be scaled. Whether to standardise `V1`–`V28` as well is a real choice,
+because their spread carries the PCA variance. Three strategies were therefore implemented and the choice was
+left to cross-validation in Phase 4:
 
-### How resampling will actually be used
+* `standard` (the default): all 30 features.
+* `minimal`: `Time` and `Amount` only.
+* `log_amount`: `log1p(Amount)` first.
 
-Applying a resampler by hand is fine for *measuring* a distribution change. It is the wrong way to use
-one for modelling: hand-resampling before cross-validation puts duplicated or interpolated copies of the
-same fraud into both the training and the validation fold, and the reported recall becomes fiction.
+The scaler is fitted on the 226,980 training rows only (`n_samples_seen_ = 226,980`, verified).
 
-The fix is structural — the sampler sits inside an `imblearn.pipeline.Pipeline`, which applies its
-samplers during `fit` only and skips them during `predict`/`score`. Each CV training fold is then
-resampled independently and no validation fold ever sees a synthetic row. Phase 2 builds and inspects
-this pipeline with its **classifier slot left empty**; filling it is Phase 3's job.
+**Imbalance framework.** Five strategies, measured on the **training split only**:
 
-Order within the pipeline matters too: preprocessing is fitted on the training fold, *then* SMOTE
-interpolates in the scaled space. Resampling before scaling would let synthetic rows influence the
-scaler's mean and standard deviation.
+| Strategy | Training rows | Class 0 | Class 1 |
+|---|---:|---:|---:|
+| Original | 226,980 | 226,602 | 378 |
+| Class weights | 226,980 | 226,602 | 378 (the loss is reweighted; the rows are unchanged) |
+| Random oversampling | 453,204 | 226,602 | 226,602 |
+| SMOTE | 453,204 | 226,602 | 226,602 |
+| Random undersampling | 756 | 378 | 378 |
 
----
+The resamplers sit inside an `imblearn` pipeline, so they only ever act on training folds.
 
-## 24. Phase 2 — Leakage Prevention and Validation
+**Validation: 65/65 checks** covering structure, module tests (including failure paths), 7 leakage tests,
+determinism and data integrity.
 
-### Leakage tests — 7 / 7 passed
-
-Each is backed by a computation, not an assurance. The suite ends in an `assert` that fails the
-notebook loudly if any test fails.
-
-| # | Test | Evidence | Result |
-|---|---|---|---|
-| 1 | Scaler fitted on training rows only | `n_samples_seen_` = 226,980 = `len(X_train)` | PASS |
-| 2 | Test rows never used for scaling statistics | train-fit vs full-fit statistics differ (`Amount` scale **245.77** vs **250.40**) | PASS |
-| 3 | Resampling saw training data only | 226,980 rows in; 0 test rows passed to any sampler | PASS |
-| 4 | Test class counts identical before and after | 56,651 / 95 both times | PASS |
-| 5 | No target column in the feature matrix | `Class` absent from `X_train` and `X_test` | PASS |
-| 6 | No target-derived feature created | 30 original columns, 30 out; strongest training \|r\| with `Class` = 0.3207 (`V17`) | PASS |
-| 7 | No synthetic sample in the test set | `X_test.equals(split.X_test)` | PASS |
-
-Test 2 deserves emphasis: a scaler fitted on the full dataset would learn `Amount` scale 250.40, and the
-one actually used learned 245.77. That difference is the positive evidence that the test rows were
-excluded — not merely an absence of evidence that they were included.
-
-### Validation suites — 58 / 58 passed
-
-| Suite | Checks | Passed |
-|---|---|---|
-| Structural validation (split, preprocessor, resampling, frame state) | 29 | **29** |
-| Module tests (`src/data_preprocessing.py`, including failure paths) | 20 | **20** |
-| Leakage tests | 7 | **7** |
-| Determinism checks | 6 | **6** |
-| Raw-data integrity checks | 3 | **3** |
-| **Total** | **65** | **65** |
-
-The 20 module tests cover the valid paths *and* the paths that must fail: an unknown scaling strategy,
-an unknown resampling strategy, a missing dataset file, a frame with a missing column, a renamed target,
-injected `NaN`, injected infinity, and a wrong row count. A module that silently accepts a malformed
-frame is worse than one that raises.
-
-### Raw data immutability
+![Train/test class distribution](visualizations/08_train_test_class_distribution.png)
 
 | | |
 |---|---|
-| SHA-256 before Phase 2 | `76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89` |
-| SHA-256 after Phase 2 | `76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89` |
-| **Status** | **UNCHANGED** — and still matching the Phase 1 value |
-
-`dp.load_data()` refuses to read a file whose digest does not match the Phase 1 value, so a swapped or
-corrupted dataset fails loudly rather than quietly changing every number downstream.
+| ![Scaling comparison](visualizations/09_scaling_comparison.png) | ![Resampling comparison](visualizations/10_resampling_comparison.png) |
 
 ---
 
-## 25. Phase 2 — Visualizations, Reproducibility and Limitations
+## 12. Phase 3: Baseline Modeling
 
-### Visualizations
+**Objective:** a disciplined baseline record covering both model families under all five imbalance strategies,
+with library defaults and the default threshold of 0.5.
 
-Numbering continues from Phase 1 rather than restarting, so no filename collides.
+**Implementation:** [`notebooks/03_model_training.ipynb`](notebooks/03_model_training.ipynb) and
+[`src/model_training.py`](src/model_training.py).
 
-| File | Visualization | Purpose |
-|---|---|---|
-| [`08_train_test_class_distribution.png`](visualizations/08_train_test_class_distribution.png) | Split class distribution | Fraud rate across full dataset, train and test — shows stratification preserved the proportion |
-| [`09_scaling_comparison.png`](visualizations/09_scaling_comparison.png) | Before/after scaling | `Time`, `Amount` and `V1` in original units and standardised, fitted on the training split |
-| [`10_resampling_comparison.png`](visualizations/10_resampling_comparison.png) | Resampling comparison | Training-set class counts and totals under original / oversampling / SMOTE / undersampling |
+**Phase 3 holdout baseline.** Ten configurations, fixed in advance, were each scored once on the test set.
+These numbers are a **historical baseline, not the final result**, and they were never used to choose the
+final model.
 
-Figure 9 makes a point worth stating: the distribution *shapes* are unchanged by scaling. `Amount` is as
-right-skewed after standardisation as before — which is exactly why `"log_amount"` exists as a Phase 3
-candidate.
+| Model | Strategy | Precision | Recall | F1 | PR-AUC | ROC-AUC |
+|---|---|---:|---:|---:|---:|---:|
+| Logistic regression | Original | 0.846154 | 0.578947 | 0.687500 | 0.691967 | 0.956047 |
+| Logistic regression | Class weights | 0.056386 | 0.873684 | 0.105935 | 0.671924 | 0.965655 |
+| Logistic regression | Oversampling | 0.056540 | 0.873684 | 0.106206 | 0.668936 | 0.965957 |
+| Logistic regression | SMOTE | 0.053035 | 0.873684 | 0.100000 | 0.675041 | 0.962618 |
+| Logistic regression | Undersampling | 0.050425 | 0.873684 | 0.095348 | 0.589557 | 0.957108 |
+| Random forest | Original | 0.971831 | 0.726316 | 0.831325 | 0.787618 | 0.923949 |
+| Random forest | Class weights | 0.945205 | 0.726316 | 0.821429 | 0.801196 | 0.939101 |
+| Random forest | Oversampling | 0.958333 | 0.726316 | 0.826347 | 0.802386 | 0.929150 |
+| Random forest | SMOTE | 0.912500 | 0.768421 | 0.834286 | 0.811967 | 0.969390 |
+| Random forest | Undersampling | 0.084780 | 0.873684 | 0.154562 | 0.698284 | 0.976697 |
 
-### Reproducibility
+**What the baselines showed:**
 
-`random_state=42` for every randomised operation: the train/test split, SMOTE, `RandomOverSampler` and
-`RandomUnderSampler`. The notebook re-runs each from scratch and confirms it lands in the same place
-(6/6 determinism checks).
+* **Rebalancing the linear model moved its operating point, not its ranking.** Recall rose from 0.58 to 0.87,
+  but precision fell from 0.85 to 0.06 and PR-AUC went slightly *down*.
+* **Forests rank fraud better**, with PR-AUC of 0.79–0.81 against at most 0.69 and far fewer false alarms. But
+  default forests memorise their training data: training recall was at least 0.997.
+* **ROC-AUC points the wrong way here.** Its highest value (0.977) belongs to a configuration with 896 false
+  alarms.
+* **There is a hard core of frauds.** All ten configurations missed the same 11 test frauds. On `V14`, `V17`,
+  `V12` and `V10` those frauds look like legitimate traffic.
 
-| Component | Version |
+| | |
 |---|---|
-| Python | 3.13.0 |
-| pandas | 3.0.6 |
-| numpy | 2.5.3 |
-| scikit-learn | 1.9.1 |
-| imbalanced-learn | **0.14.2** (added in Phase 2) |
-| matplotlib | 3.11.2 |
-| seaborn | 0.13.2 |
-| jupyter | 1.1.1 |
+| ![Model metric comparison](visualizations/11_model_metric_comparison.png) | ![PR curves](visualizations/14_precision_recall_curves.png) |
 
-The notebook was executed twice from a fresh kernel; **all 36 code cells produced byte-identical text
-and table output on both runs.**
-
-### Phase 2 limitations
-
-- The scaling choice between `"standard"`, `"minimal"` and `"log_amount"` is **unresolved**. It cannot
-  be resolved without fitting a model, and resolving it against the test set would destroy the split.
-- Resampling was **measured, not evaluated**. Which strategy helps is a Phase 4 question.
-- The 95 fraudulent transactions in the test set are a small sample. Recall estimated from them will
-  carry real uncertainty, and Phase 5 should report that rather than quoting a point value as if it
-  were precise.
-- Deduplication removed 19 fraud rows — a deliberate, documented trade, not a cleaning side-effect.
-- **No model results of any kind exist yet.** Any number in this README describing model performance
-  would be fabricated; there are none.
+![Random forest confusion matrices](visualizations/13_confusion_matrix_random_forest.png)
 
 ---
 
-## 26. Project Structure
+## 13. Phase 4: Cross-Validation and Tuning
 
-Current state — only the files Phases 1–2 genuinely need exist. The remaining directories will be
-created by the phase that first needs them, rather than being stubbed out now.
+**Objective:** make every model-selection decision using **training data only**.
+
+**Implementation:** [`notebooks/04_model_validation_tuning.ipynb`](notebooks/04_model_validation_tuning.ipynb).
+The cross-validation, out-of-fold and threshold helpers are in [`src/model_training.py`](src/model_training.py),
+and the results are in [`results/`](results/).
+
+**Method.** `StratifiedKFold(5, shuffle=True, random_state=42)` on the 226,980 training rows, which puts 75 or 76
+frauds in each validation fold. The whole pipeline (scaler, resampler, classifier) is fitted again inside every
+fold, and validation folds are never resampled. The test set was fingerprinted, removed from the notebook's
+namespace, and verified to be untouched.
+
+**Rules declared before any result was computed:**
+
+1. The primary metric is **mean CV PR-AUC**.
+2. **One-standard-error rule** (Hastie, Tibshirani & Friedman, *ESL* §7.10): among the configurations within
+   one standard error of the best, choose the simplest, using a fixed order. Logistic regression counts as
+   simpler than a forest. For resampling the order is none, then undersampling, then oversampling, then SMOTE.
+   Fewer trees count as simpler than more, and the default scaling comes first.
+3. **Threshold:** the one with maximum F1 on out-of-fold training predictions, with ties going to the lower
+   threshold.
+
+**Results (training-only cross-validation):**
+
+| Question | Evidence | Decision |
+|---|---|---|
+| Scaling | Logistic regression PR-AUC moves by at most 0.0032 across the three strategies for four imbalance strategies (0.020 for undersampling), far below one standard error. Forest PR-AUC is 0.8341 / 0.8334 / 0.8342. | Keep `standard` |
+| Imbalance (logistic regression) | Original 0.7527, SMOTE 0.7431, class weights 0.7382, undersampling 0.5715 | Rebalancing buys recall, not ranking |
+| Imbalance (forest) | SMOTE 0.8425, class weights 0.8347, original 0.8341, oversampling 0.8331, all **tied within one standard error**. Undersampling 0.7579. | No resampling |
+| Logistic regression tuning | 24 configurations, 120 fits. Best: L1, C = 0.1, PR-AUC 0.7559 | Logistic regression is flat across the grid |
+| Forest tuning | Full grid of 12 configurations, 60 fits. Best: `min_samples_leaf=5`, `max_features=0.3`, PR-AUC 0.8386 | The recall overfitting gap falls from 0.177–0.225 (default forests) to 0.051 |
+| 300 vs 100 trees | 0.8403 vs 0.8386, a difference smaller than one standard error at 3 times the cost | Keep 100 |
+| Threshold | Out-of-fold F1 peaks at **0.50** (0.846043) and is flat between 0.35 and 0.50 | **0.50** |
+
+The candidate forest beats the tuned logistic regression **in all five folds**. Its CV PR-AUC by fold is
+0.822568, 0.853667, 0.768254, 0.879792 and 0.868619, for a mean of **0.838580 ± 0.044807**.
+
+**A reproducibility fix from this phase.** scikit-learn's parallel `predict_proba` adds up the tree
+probabilities in whatever order the threads finish. Repeated predictions therefore differed in the last bit
+(in 20 of 20 calls, by up to 2.2e-16), and this caused one validation run to fail. The project's
+`FixedOrderRandomForestClassifier` still trains in parallel but adds the trees up in a fixed order, so
+predictions are now repeatable bit for bit.
+
+**Validation: 29/29 checks**, and two fresh-kernel runs produced identical results.
+
+| | |
+|---|---|
+| ![CV model comparison](visualizations/17_cv_model_comparison.png) | ![Overfitting gap](visualizations/18_cv_overfitting_gap.png) |
+
+![Threshold analysis](visualizations/22_precision_recall_threshold_analysis.png)
+
+---
+
+## 14. Phase 5: Final Model Evaluation
+
+**Objective:** lock the Phase 4 candidate, save it, and evaluate it **once** on the untouched test set.
+
+**Implementation:** [`notebooks/05_final_model_evaluation.ipynb`](notebooks/05_final_model_evaluation.ipynb).
+
+The order of operations is what guarantees a fair test, and the notebook checks that order by reading its own
+source:
+
+1. **Lock.** The configuration is read from [`results/phase4_candidate.json`](results/phase4_candidate.json)
+   and checked field by field. The decision rule `P(fraud) ≥ 0.50` is fixed before any test data is read.
+2. **Train.** The model is fitted once on all 226,980 training rows (scaler `n_samples_seen_ = 226,980`, no
+   resampling step).
+3. **Save.** The artefact is written and its SHA-256 recorded.
+4. **Validate.** The artefact is reloaded through `src/predict.py`, compared with the in-memory model, loaded
+   in a separate Python process, and tested with valid and invalid inputs.
+5. **Evaluate.** Only now is the test set opened. It is scored once, using the artefact **loaded from disk**,
+   after its hash has been checked again.
+
+**Validation:**
+
+* 18/18 test-set integrity checks and 9/9 prediction smoke tests pass.
+* Predictions from a fresh process are identical bit for bit on all 56,746 test rows.
+* The raw data is unchanged.
+* Three independent trainings produced the **same artefact SHA-256**.
+
+The results are in sections [16](#16-final-model) to [21](#21-error-analysis).
+
+---
+
+## 15. Phase 6: Streamlit Dashboard
+
+**Objective:** a professional interface to the saved model, with no retraining and no re-evaluation.
+
+**Implementation:** [`app.py`](app.py), [`.streamlit/config.toml`](.streamlit/config.toml) and
+[`tests/test_dashboard.py`](tests/test_dashboard.py).
+
+| Page | Content |
+|---|---|
+| **Overview** | The task, the dataset size and imbalance, and the final test metrics as cards |
+| **Fraud Prediction** | 30 inputs, grouped into transaction information and PCA components. Demonstration examples. A box for pasting a full row as JSON or CSV. The probability, verdict and threshold. |
+| **Data Analysis** | Amount, time, per-component and correlation views of the raw dataset |
+| **Model Performance** | Final test metrics with bootstrap intervals, the confusion matrix, PR and ROC curves, and a Phase 3/4/5 comparison |
+| **Model Details** | The locked pipeline, hyperparameters, artefact checksum, selection method and CV results |
+| **About Project** | The internship, task, provenance, workflow, technologies, limitations and future work |
+
+**Design principles:**
+
+* Every prediction goes through `src/predict.py`.
+* Every metric is read from `results/phase5_final_metrics.json`, `models/final_model_metadata.json` or
+  `results/phase4_candidate.json`. The one exception is Phase 3's historical holdout values, which are labelled
+  with their source.
+* The model and dataset are cached, and the dashboard writes nothing.
+
+**Validation:** the Streamlit `AppTest` suite passes **42/42 checks**:
+
+* Every page renders, and the metrics and charts display.
+* All four demonstration predictions and a pasted row are **identical to what `src/predict.py` returns**.
+* Eight kinds of invalid input produce clear error messages instead of crashes.
+
+---
+
+## 16. Final Model
+
+| Component | Setting |
+|---|---|
+| Algorithm | Random forest (`FixedOrderRandomForestClassifier`, a `RandomForestClassifier` that adds up its trees in a fixed order) |
+| Preprocessing | `StandardScaler` on all 30 features, fitted on the training split only |
+| Imbalance strategy | None: the original class distribution, `class_weight=None` |
+| Hyperparameters | `n_estimators=100`, `min_samples_leaf=5`, `max_features=0.3`, `max_depth=None`, `random_state=42` |
+| **Decision threshold** | **0.50**: fraud if P(fraud) ≥ 0.50 |
+| Trained on | 226,980 training rows (226,602 legitimate, 378 fraud) |
+
+**Why this model.** The selection used **cross-validation on training data only, with PR-AUC as the primary
+metric**, followed by the one-standard-error rule. The highest mean CV PR-AUC (0.842494) belonged to a default
+forest with SMOTE. Six forests scored within one standard error (0.014373) of it, and the simplest of them (no
+resampling, 100 trees) was chosen.
+
+Precision, recall, F1, fold stability, overfitting and cost were then checked:
+
+* The candidate needs no synthetic data.
+* It overfits least: a recall gap of 0.051, against 0.177 for the SMOTE forest.
+* It beats the tuned logistic regression in every fold.
+
+It is not claimed to be better than the SMOTE forest, because the data cannot tell the two apart.
+
+**Training-only CV estimates for this configuration** (from Phase 4; these are not test results):
+
+| PR-AUC | Precision @0.5 | Recall @0.5 | F1 @0.5 | ROC-AUC |
+|---:|---:|---:|---:|---:|
+| 0.838580 ± 0.044807 | 0.926667 ± 0.023880 | 0.777719 ± 0.090171 | 0.843867 ± 0.060610 | 0.953749 ± 0.022195 |
+
+---
+
+## 17. Final Test Results
+
+**Phase 5: the locked model, evaluated once on the test set.** The test set is 56,746 untouched transactions
+(56,651 legitimate, 95 fraud), scored at a threshold of 0.50. The bootstrap intervals come from 2,000
+resamples of the test rows (`random_state=42`) and are descriptive only.
+
+| Metric | Value | 95% bootstrap interval |
+|--------|------:|:---:|
+| Accuracy | 0.999471 | n/a |
+| Precision | **0.945205** | 0.886 – 0.988 |
+| Recall | **0.726316** | 0.633 – 0.813 |
+| F1 | **0.821429** | 0.753 – 0.879 |
+| PR-AUC | **0.793217** | 0.713 – 0.868 |
+| ROC-AUC | 0.936863 | 0.901 – 0.968 |
+| Specificity | 0.999929 | n/a |
+| False positive rate | 0.000071 | n/a |
+| False negative rate | 0.273684 | n/a |
+
+| Confusion Matrix | Count |
+|------------------|------:|
+| TN: legitimate, passed | 56,647 |
+| FP: legitimate, flagged | 4 |
+| FN: fraud, missed | 26 |
+| TP: fraud, caught | 69 |
+
+**The three evaluations, kept separate:**
+
+| Evaluation | What it is | PR-AUC | Precision | Recall | F1 |
+|---|---|---:|---:|---:|---:|
+| Phase 3 holdout baseline (default random forest) | Untuned baseline on the same test set | 0.787618 | 0.971831 | 0.726316 | 0.831325 |
+| Phase 4 training-only CV | Mean over 5 validation folds | 0.838580 | 0.926667 | 0.777719 | 0.843867 |
+| **Phase 5 final test** | **Locked model, evaluated once** | **0.793217** | **0.945205** | **0.726316** | **0.821429** |
+
+**Reading the result.**
+
+* **The test PR-AUC is below the CV estimate, as Phase 4 anticipated.** A CV score belongs to the
+  configuration chosen on those same folds, so it is optimistic. This test split had also already scored below
+  CV for nine of the ten Phase 3 configurations.
+* **The two estimates are still consistent.** The test PR-AUC lies inside the candidate's CV fold range
+  (0.768–0.880), and the CV mean lies inside the test bootstrap interval.
+* **Tuning reduced overfitting substantially but gave only a small test gain** over the Phase 3 forests. That
+  matches Phase 4, where those forests were within one standard error of each other.
+* **The comparison operator does not matter.** No test transaction scored exactly 0.50, so `≥` and `>` give
+  the same result.
+
+**Nothing was changed after this evaluation.**
+
+---
+
+## 18. Confusion Matrix Analysis
+
+![Final confusion matrix](visualizations/25_final_confusion_matrix.png)
+
+* **4 false positives.** 0.007% of legitimate transactions were flagged. Each one would mean a challenged
+  payment and an analyst review.
+* **26 false negatives.** 27.37% of the fraud in the test set got through undetected.
+* At this threshold the model is conservative: very few false alarms, and about three-quarters of the fraud
+  caught. A lower threshold would catch more fraud at the cost of more alerts. Where to sit on that trade-off
+  is a business decision, and the threshold was not moved after these results were seen.
+
+---
+
+## 19. Precision-Recall Analysis
+
+![Final precision-recall curve](visualizations/26_final_precision_recall_curve.png)
+
+Along the curve:
+
+* Precision stays near 1.0 up to a recall of about 0.40.
+* Precision stays above 0.9 until just past the locked operating point (precision 0.945, recall 0.726).
+* Beyond a recall of about 0.78, precision falls steeply. Phase 4 found the same cliff out-of-fold.
+
+The PR-AUC of 0.793217 is about **474 times** the no-skill level, which equals the fraud prevalence of 0.0017.
+PR-AUC is the primary metric because its precision axis counts every false alarm against the alerts raised.
+
+---
+
+## 20. ROC Analysis
+
+![Final ROC curve](visualizations/27_final_roc_curve.png)
+
+ROC-AUC is **0.936863**. The operating point sits at a false-positive rate of **0.000071**, which is only
+visible in the zoomed inset. The long straight segment comes from frauds that the forest scores at or near
+zero, tied with most legitimate transactions.
+
+ROC measures false alarms against *all* 56,651 legitimate transactions, so even hundreds of false alarms would
+barely move it. That is why ROC-AUC is recorded as a secondary metric and PR-AUC is the primary one.
+
+---
+
+## 21. Error Analysis
+
+This analysis is descriptive only. The patterns show *which* transactions are misclassified, not *why*.
+
+| Outcome | Count | Median P(fraud) | Median Amount | Median `V14` | Median `V17` |
+|---|---:|---:|---:|---:|---:|
+| Fraud caught (TP) | 69 | 0.9255 | 33.59 | −7.28 | −5.70 |
+| Fraud missed (FN) | 26 | 0.0020 | 2.99 | −1.02 | 0.92 |
+| False alarm (FP) | 4 | 0.6568 | 510.50 | −4.95 | −6.71 |
+| Legitimate passed (TN) | 56,647 | 0.0000 | 21.60 | 0.06 | −0.07 |
+
+* **Most missed frauds look legitimate to the model.** 15 of the 26 score below 0.01. On the components that
+  separate the classes best, they sit close to legitimate traffic and far from the frauds that were caught.
+  Four missed frauds scored 0.40–0.47 (to two decimals), just under the threshold.
+* **False alarms look like fraud** on those same components. One of them is the largest transaction in the
+  dataset (25,691.16).
+* **The model's confidence is informative.** Of the 42 transactions scored at 0.90 or above, 41 are fraud. Of
+  the 56,219 scored below 0.01, 15 are fraud.
+* `Time` shows no clear pattern across the outcomes.
+
+---
+
+## 22. Model Persistence
+
+| | |
+|---|---|
+| Artefact | [`models/final_credit_card_fraud_pipeline.joblib`](models/final_credit_card_fraud_pipeline.joblib) |
+| Format | joblib (compression level 3) |
+| Size | 501,175 bytes (0.48 MiB) |
+| **SHA-256** | `fb538208042767a69c8a897e0824784cd513bfcadfa6cb63b10435471c8274f9` |
+| Metadata | [`models/final_model_metadata.json`](models/final_model_metadata.json), a human-readable companion |
+
+The artefact is a dictionary that holds everything needed for prediction:
+
+```python
+{
+    "pipeline":        StandardScaler → FixedOrderRandomForestClassifier,   # fitted on training rows
+    "threshold":       0.5,
+    "decision_rule":   "fraud if P(fraud) >= threshold",
+    "feature_columns": ["Time", "V1", ..., "V28", "Amount"],
+    "metadata":        {...configuration, CV metrics, provenance, package versions...},
+}
+```
+
+* **Storing the threshold inside the artefact** means the prediction rule cannot drift away from the rule that
+  was evaluated.
+* **No timestamp is stored**, so an identical fit reproduces an identical file. This was verified across three
+  independent trainings.
+* **The pickled forest class lives in `src/model_training.py`.** `src/predict.py` makes it importable
+  automatically.
+
+---
+
+## 23. Prediction API
+
+[`src/predict.py`](src/predict.py) loads the artefact once (cached), validates the input, scores it and applies
+the stored threshold. It does not duplicate any preprocessing; the saved pipeline handles that.
+
+**As a library** (run from the project folder):
+
+```python
+import json, sys
+sys.path.insert(0, "src")
+import predict
+
+# A real transaction from the held-out test set (the dashboard's first demonstration example)
+transaction = json.load(open("results/phase5_demo_examples.json"))["examples"][0]["features"]
+
+predict.predict_transaction(transaction)
+# {'fraud_probability': 0.8107662476412476, 'predicted_class': 1, 'label': 'FRAUD', 'threshold': 0.5}
+
+predict.predict_batch(dataframe_with_the_30_columns)   # columns: fraud_probability, predicted_class, label
+predict.model_threshold()                               # 0.5, read from the artefact
+```
+
+**From the command line** (run from the project folder):
+
+```powershell
+python src/predict.py --input transaction.json     # a JSON object with the 30 features
+python src/predict.py --json '{"Time": 0, "V1": 0.1, ..., "Amount": 12.5}'   # all 30 features, inline
+python src/predict.py --smoke-test                  # 12 end-to-end checks
+```
+
+**Input validation.** A transaction can be either a mapping of the 30 feature names or a sequence of exactly 30
+values in `Time, V1…V28, Amount` order. `InvalidTransactionError` is raised, with a specific message, for:
+
+* missing features, or unexpected ones (including a `Class` column);
+* the wrong number of values;
+* non-numeric or empty values;
+* NaN or infinity;
+* a negative `Amount` or `Time`.
+
+---
+
+## 24. Dashboard Usage
+
+```powershell
+cd Task3_Credit_Card_Fraud_Detection
+streamlit run app.py
+```
+
+Streamlit opens the dashboard in a browser, by default at `http://localhost:8501`.
+
+1. Open the **Fraud Prediction** page.
+2. Enter the 30 features, or click a demonstration example. The four examples are real transactions from the
+   held-out test split, chosen after the final evaluation: one caught fraud, one missed fraud, one legitimate
+   transaction and one false alarm.
+3. Click **Analyze Transaction**.
+
+You can also paste a full transaction as JSON or as 30 comma-separated values.
+
+The screenshots below were captured from the running application, using headless Chrome to drive the live app.
+
+| | |
+|---|---|
+| ![Fraud prediction](docs/images/dashboard-prediction.png) | ![Model performance](docs/images/dashboard-performance.png) |
+| **Fraud Prediction:** a real test transaction scored 0.8108, so it is classed as FRAUD | **Model Performance:** final test metrics, confusion matrix and curves |
+| ![Data analysis](docs/images/dashboard-analysis.png) | ![Model details](docs/images/dashboard-model-details.png) |
+| **Data Analysis:** distributions of the raw dataset | **Model Details:** the locked pipeline and the selection method |
+
+![About page](docs/images/dashboard-about.png)
+
+> Every prediction is a model score, not a verdict. On the test set the model caught 69 of 95 frauds and raised
+> 4 false alarms.
+
+---
+
+## 25. Project Structure
 
 ```
 Task3_Credit_Card_Fraud_Detection/
-│
+├── .streamlit/
+│   └── config.toml                         # dashboard theme
 ├── dataset/
-│   └── creditcard.csv                  # raw data, 150,828,752 bytes, unmodified
-│
+│   └── creditcard.csv                      # raw data (Git LFS), SHA-256 76274b69…, never modified
+├── docs/
+│   └── images/                             # real dashboard screenshots (6)
+├── models/
+│   ├── final_credit_card_fraud_pipeline.joblib   # locked pipeline + threshold
+│   └── final_model_metadata.json           # human-readable model card
 ├── notebooks/
-│   ├── 01_dataset_audit.ipynb          # Phase 1 - dataset audit & EDA
-│   └── 02_data_preprocessing.ipynb     # Phase 2 - split, scaling, imbalance framework
-│
+│   ├── 01_dataset_audit.ipynb              # Phase 1
+│   ├── 02_data_preprocessing.ipynb         # Phase 2
+│   ├── 03_model_training.ipynb             # Phase 3
+│   ├── 04_model_validation_tuning.ipynb    # Phase 4
+│   └── 05_final_model_evaluation.ipynb     # Phase 5
+├── results/
+│   ├── phase4_candidate.json               # the selected configuration and threshold
+│   ├── phase4_candidate_threshold_analysis.csv
+│   ├── phase4_cv_summary.csv
+│   ├── phase4_lr_search.csv
+│   ├── phase4_rf_search.csv
+│   ├── phase5_demo_examples.json           # dashboard demonstration transactions
+│   └── phase5_final_metrics.json           # final test results (read by the dashboard)
 ├── src/
-│   └── data_preprocessing.py           # Phase 2 - the reusable preprocessing API
-│
-├── visualizations/
-│   ├── 01_class_distribution.png       # Phase 1
-│   ├── 02_amount_distribution.png
-│   ├── 03_amount_by_class.png
-│   ├── 04_time_distribution.png
-│   ├── 05_feature_scale_summary.png
-│   ├── 06_correlation_heatmap.png
-│   ├── 07_class_separation.png
-│   ├── 08_train_test_class_distribution.png   # Phase 2
-│   ├── 09_scaling_comparison.png
-│   └── 10_resampling_comparison.png
-│
-├── requirements.txt                    # Phase 1-2 dependencies
+│   ├── data_preprocessing.py               # loading, validation, split, preprocessors, resamplers
+│   ├── model_training.py                   # pipelines, metrics, CV / OOF / threshold helpers
+│   └── predict.py                          # prediction API and CLI
+├── tests/
+│   └── test_dashboard.py                   # Streamlit AppTest suite (42 checks)
+├── visualizations/                         # 27 figures, numbered by phase (01–27)
+├── app.py                                  # Streamlit dashboard
+├── requirements.txt
 └── README.md
 ```
 
-Planned for later phases: `models/` (Phase 5), `app.py` (Phase 6). No model artefact, prediction API or
-dashboard exists yet.
+---
+
+## 26. Installation
+
+These instructions are for Windows with PowerShell. [Git LFS](https://git-lfs.com) is required, because the
+143.84 MiB dataset is stored with it.
+
+```powershell
+git lfs install                                        # once per machine
+git clone https://github.com/harsha282004/CODSOFT.git
+cd CODSOFT\Task3_Credit_Card_Fraud_Detection
+
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+If you cloned the repository before installing Git LFS, `dataset\creditcard.csv` will be a small pointer file.
+Fetch the real file with:
+
+```powershell
+git lfs pull
+```
+
+Then verify the dataset. The hash must match exactly; every notebook also checks it and stops if it differs.
+
+```powershell
+Get-FileHash dataset\creditcard.csv -Algorithm SHA256
+# 76274B691B16A6C49D3F159C883398E03CCD6D1EE12D9D8EE38F4B4B98551A89
+```
+
+You can also download the dataset directly from Kaggle
+([`mlg-ulb/creditcardfraud`](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud)) and place it at
+`dataset/creditcard.csv`.
 
 ---
 
-## 27. Installation and Reproduction
+## 27. Running the Project
 
-The project uses the repository-level virtual environment at `../.venv`, shared with Tasks 1 and 2.
+Run all commands from the `Task3_Credit_Card_Fraud_Detection` folder with the virtual environment active.
 
-```bash
-# from the repository root
-python -m venv .venv
-.venv\Scripts\activate                                   # Windows
-pip install -r Task3_Credit_Card_Fraud_Detection/requirements.txt
+**Dashboard**
+
+```powershell
+streamlit run app.py
 ```
 
-Reproducing the dataset download:
+**Prediction API and CLI**
 
-```bash
-curl -L -o archive.zip "https://www.kaggle.com/api/v1/datasets/download/mlg-ulb/creditcardfraud"
-# then extract creditcard.csv into Task3_Credit_Card_Fraud_Detection/dataset/
+```powershell
+python src/predict.py --smoke-test
+python src/predict.py --input transaction.json
 ```
 
-Running the notebooks (in order):
+**Tests**
 
-```bash
-cd Task3_Credit_Card_Fraud_Detection/notebooks
-jupyter notebook 01_dataset_audit.ipynb          # Phase 1 - or: jupyter lab
-jupyter notebook 02_data_preprocessing.ipynb     # Phase 2
+```powershell
+python tests/test_dashboard.py          # 42 dashboard checks (Streamlit AppTest)
 ```
 
-Using the preprocessing API directly:
+**Notebooks.** Run them in order. Each one is self-contained and runs from a fresh kernel.
 
-```python
-import sys; sys.path.insert(0, "Task3_Credit_Card_Fraud_Detection/src")
-import data_preprocessing as dp
-
-df = dp.load_data()                    # checksum-verified, validated, deduplicated
-split = dp.split_data(df)              # stratified 80/20, random_state=42
-
-pre = dp.build_preprocessor("standard").fit(split.X_train)   # fitted on TRAIN only
-X_train_t = pre.transform(split.X_train)
-X_test_t = pre.transform(split.X_test)                       # transform, never fit
+```powershell
+jupyter notebook
 ```
 
-### Environment the Phase 1 results were produced on
+| Order | Notebook | Approximate runtime* |
+|---|---|---|
+| 1 | `01_dataset_audit.ipynb` | about 6 min |
+| 2 | `02_data_preprocessing.ipynb` | about 1 min |
+| 3 | `03_model_training.ipynb` | 7–8 min |
+| 4 | `04_model_validation_tuning.ipynb` | about 40 min at full machine speed (2 h 17 min in the final run, under heavy background load) |
+| 5 | `05_final_model_evaluation.ipynb` | 2–5 min (rewrites the model artefact, byte-identical) |
 
-| Component | Version |
+\*Measured on a 12-core Windows laptop. Wall-clock times varied considerably with background system load during
+this project, so treat them as rough guides only.
+
+---
+
+## 28. Reproducibility
+
+| | |
 |---|---|
 | Python | 3.13.0 |
-| pandas | 3.0.6 |
-| numpy | 2.5.3 |
-| matplotlib | 3.11.2 |
-| seaborn | 0.13.2 |
-| jupyter | 1.1.1 |
-| Platform | Windows 11 |
+| Packages | Pinned in [`requirements.txt`](requirements.txt) |
+| Random state | `random_state=42` for the split, the CV splitter, every sampler and every classifier |
+| Split | Stratified 80/20. The test-set fingerprint `50a7a7a9…187f27e` was verified in Phases 3, 4 and 5. |
+| CV | `StratifiedKFold(5, shuffle=True, random_state=42)`. Fold-assignment fingerprint `30b0865a…`. |
+| Raw data | SHA-256 `76274b69…51a89`, checked at the start and end of every notebook |
+| Model artefact | SHA-256 `fb538208…8274f9`, identical across three independent trainings |
 
-The notebook is deterministic — it fits nothing and samples nothing — and `RANDOM_STATE = 42` is fixed
-for any display-only sampling. It was executed twice from a fresh kernel and the numeric outputs were
-identical on both runs.
+**Evidence from repeated runs:**
+
+* **Phases 1 and 2:** each notebook was run twice from a fresh kernel, and the outputs were identical.
+* **Phase 3:** the prediction fingerprint `4ad550cd…` was identical in four runs.
+* **Phase 4:** the two final fresh-kernel runs were identical apart from wall-clock timings, and all five
+  `results/phase4_*` files were byte-identical.
+* **Phase 5:** three independent trainings produced the same artefact hash. A separate Python process
+  reproduces every test probability bit for bit.
+* **Final validation:** notebooks 01 to 05 were all run again from fresh kernels, in order. Every result file,
+  figure and the model artefact came out byte-identical, and every notebook's output text matched its saved
+  version apart from timings.
+* **Random-forest predictions** are added up in a fixed tree order (`FixedOrderRandomForestClassifier`), because
+  scikit-learn's parallel summation does not repeat bit for bit.
 
 ---
 
-## 28. Roadmap — Later Phases
+## 29. Data Leakage Prevention
 
-*Phase 2 is complete and documented in sections 18–25 above. Everything below is planned. None of it
-has been implemented, and no results exist for any of it.*
+Leakage produces excellent scores and worthless models, so it was designed out and then tested for.
 
-| Phase | Planned work |
+| Stage | Safeguard | How it was verified |
+|---|---|---|
+| **Train/test split** | Split once in Phase 2 (stratified, `random_state=42`). Duplicates were removed *before* the split, so no row can appear on both sides. | The train and test row indices are disjoint, and the test fingerprint is identical in Phases 3, 4 and 5. |
+| **Scaler fitting** | `StandardScaler` sits inside the pipeline and is fitted only on the data passed to `fit`. | `n_samples_seen_` is 226,980 for the final model and 181,584 (each fold's training rows) in CV. The training-only fit also learns different statistics from a full-data fit (`Amount` scale 245.77 vs 250.40). |
+| **Resampling inside CV** | Samplers sit inside an `imblearn` pipeline, so each training fold is resampled on its own and validation folds never are. | Each fitted sampler's strategy equals the value derived from its own fold's training counts. |
+| **Training-only pipelines** | Scaling, resampling and the imbalance choices are all pipeline steps, fitted again in every fold. | No preprocessing statistic is computed outside a fitted pipeline. |
+| **Out-of-fold predictions** | Each training row is scored exactly once, by the one fold model that did not train on it. | 226,980 out-of-fold predictions, one per row, aligned by index. |
+| **Hyperparameter search** | Grid searches receive training data only, and a recording scorer logs every row that is scored. | 226,980 rows recorded per search: every training row and no test rows. |
+| **Threshold selection** | Chosen by maximum F1 on out-of-fold training predictions. | The threshold can be reproduced from the out-of-fold vector alone. |
+| **Model selection** | The declared one-standard-error rule is applied to the CV summaries. | The selection can be reproduced from the CV table alone. |
+| **Untouched test set** | Fingerprinted and removed from the Phase 4 namespace. Opened in Phase 5 only after the artefact was saved and hashed. | Source scans show the test split is referenced only in designated cells, and none of them comes before the artefact lock. |
+| **Final test evaluation** | Scored once, with the artefact loaded from disk. Nothing was changed afterwards. | The artefact hash is identical before and after the evaluation. |
+
+The Phase 3 scores are the one place where the test set was seen before Phase 5. They were recorded as a baseline
+and **never used for any decision**. Every Phase 4 choice was made on cross-validation, and the Phase 3
+configurations were fixed before their test results existed.
+
+---
+
+## 30. Limitations
+
+* **The data is historical.** It covers two days of European card transactions from September 2013. Fraud
+  tactics and customer behaviour change, and performance on current transactions has not been shown.
+* **The features are anonymised.** `V1`–`V28` have no published meaning, so the model cannot be explained in
+  business terms. Features a real system would use, such as merchant, location, device and history, are absent.
+* **Distribution shift and concept drift were not tested.** The random split mixes both days. A time-ordered
+  evaluation, which is closer to how a deployed model is used, was not performed.
+* **The positive class is small.** With 95 test frauds, recall's 95% bootstrap interval is 0.633 to 0.813.
+* **The threshold rests on an assumption.** Maximum F1 weights false alarms and missed fraud equally. A real
+  deployment would set the threshold from actual costs and review capacity.
+* **The probabilities are not calibrated.** Random-forest scores rank transactions well, but they are not
+  calibrated probabilities.
+* **This is not a production system.** There is no real-time serving, monitoring, alerting, drift detection or
+  retraining infrastructure, and the project does not claim to be production-ready.
+
+---
+
+## 31. Future Improvements
+
+*These are all future work. None of them is implemented.*
+
+* **Probability calibration**, using isotonic or Platt scaling fitted on training data.
+* **Cost-sensitive learning and threshold selection**, based on real fraud-loss and review costs.
+* **Temporal validation**: train on earlier transactions and test on later ones.
+* **Drift monitoring** of feature distributions and score distributions.
+* **Explainability**: per-prediction explanations, for example with SHAP values.
+* **A real-time inference service**, with latency and throughput monitoring.
+* **An automated retraining policy**, with a locked evaluation protocol.
+
+---
+
+## 32. Key Learnings
+
+* **Accuracy is misleading under imbalance.** The model that predicts "legitimate" for everything scores
+  99.83% and catches nothing.
+* **PR-AUC is the right ranking metric here**, because precision counts every false alarm. ROC-AUC ranked the
+  Phase 3 configurations almost in reverse.
+* **Stratification matters** when positives are this rare. An unstratified split visibly distorts the fraud
+  rate.
+* **Preventing leakage is a matter of structure.** Split first, fit every transformation inside a pipeline, and
+  resample only the training folds.
+* **Rebalancing often moves the operating point without improving the model**, which is the same effect a
+  different threshold would have.
+* **The threshold should be chosen on training data** (out-of-fold predictions), never on the test set.
+* **Cross-validation estimates for a selected model are optimistic.** The locked, once-only test evaluation is
+  the honest number, and it came in lower.
+* **The saved model should carry its decision rule.** Storing the threshold in the artefact keeps prediction
+  consistent with evaluation.
+* **Reproducibility has to be checked, not assumed.** Parallel floating-point summation broke bit-level
+  reproducibility until the prediction order was fixed.
+* **The trade-off between false positives and false negatives is a business decision**, not a modelling one.
+  The model exposes the trade-off; it does not resolve it.
+
+---
+
+## 33. Phase-by-Phase Summary
+
+| Phase | Objective | Key decisions | Validation | Outputs |
+|---|---|---|---|---|
+| 1 | Audit and EDA | Keep outliers; leave duplicates for Phase 2 | 22/22 integrity checks | Figures 01–07 |
+| 2 | Preprocessing | Drop duplicates before the split; stratified 80/20; three scalings; resampling inside pipelines | 65/65 checks | `data_preprocessing.py`, figures 08–10 |
+| 3 | Baselines | 10 configurations fixed in advance, default threshold | 22/22 checks; 4 identical runs | `model_training.py`, figures 11–16 |
+| 4 | Model selection | Training-only CV; one-standard-error rule; threshold 0.50; random forest | 29/29 checks; 2 identical runs | `results/phase4_*`, figures 17–24 |
+| 5 | Lock and evaluate | Configuration locked; evaluated once | 18/18 integrity checks, 9/9 smoke tests; 3 identical artefacts | Model artefact, `predict.py`, figures 25–27 |
+| 6 | Dashboard | Presentation only; results read from files | 42/42 AppTest checks | `app.py`, screenshots |
+
+---
+
+## 34. Results Summary
+
+| | Value |
 |---|---|
-| **Phase 3** | Baseline classifiers — logistic regression and random forest, as the CodSoft brief names — evaluated on precision, recall, F1 and PR-AUC, never on accuracy alone |
-| **Phase 4** | Class-imbalance strategies compared on equal footing: `class_weight="balanced"`, random over- and under-sampling, SMOTE, and decision-threshold tuning — all applied inside the training fold only |
-| **Phase 5** | Final held-out evaluation, confusion matrix, and persistence of the chosen pipeline |
-| **Phase 6** | Prediction interface and Streamlit dashboard, loading the persisted pipeline without retraining |
+| Dataset | 284,807 transactions, 492 of them fraud (0.173%) |
+| Final model | Random forest: 100 trees, `min_samples_leaf=5`, `max_features=0.3`, StandardScaler, no resampling |
+| Threshold | 0.50 (maximum out-of-fold F1) |
+| CV PR-AUC (training only) | 0.838580 ± 0.044807 |
+| **Test PR-AUC** | **0.793217** |
+| **Test precision / recall / F1** | **0.945205 / 0.726316 / 0.821429** |
+| Test ROC-AUC / accuracy | 0.936863 / 0.999471 |
+| Test confusion matrix | TN 56,647, FP 4, FN 26, TP 69 |
+
+---
+
+## 35. Conclusion
+
+The project covers everything the CodSoft brief asks for:
+
+* preprocessing and normalisation;
+* a stratified train/test split;
+* class-imbalance handling, including oversampling and undersampling;
+* logistic regression and random forests;
+* evaluation by precision, recall and F1.
+
+It also adds the discipline that makes the result trustworthy: a verified dataset, pipelines that cannot leak,
+model selection on training data only, and a single, honest test evaluation.
+
+The final random forest catches **69 of 95 frauds (recall 0.726)** and flags only **4 of 56,651 legitimate
+transactions (precision 0.945)**, with a test PR-AUC of **0.793**. Most of the frauds it misses look like
+legitimate traffic on the available features, which is as much a limit of the data as of the model.
+
+The whole pipeline reproduces bit for bit. It is saved as a single artefact that includes its threshold, served
+through a validated prediction API, and presented in a tested Streamlit dashboard.
 
 ---
 
 <div align="center">
 
-**CodSoft Data Science Virtual Internship · Task 5 — Credit Card Fraud Detection**
+**CodSoft Data Science Virtual Internship · Task 5: Credit Card Fraud Detection**
 
-*Local folder `Task3_Credit_Card_Fraud_Detection` · Phase 2 of 6 complete — dataset audit, preprocessing and imbalance framework*
+*Local folder `Task3_Credit_Card_Fraud_Detection`*
 
 </div>

@@ -1,8 +1,5 @@
-# Versions pinned to what is already installed in the repository's .venv; nothing is upgraded.
-#
-# Phases 1-2. Packages for the later phases (joblib for persistence, streamlit/plotly for the
-# dashboard) are deliberately not listed yet - they will be added when the phase that needs
-# them is actually implemented.
+# Versions pinned to what is installed in the repository's .venv (Python 3.13.0); nothing was upgraded.
+# Install with:  pip install -r requirements.txt
 
 # Phase 1 - dataset audit & exploratory data analysis
 pandas==3.0.6
@@ -15,6 +12,17 @@ jupyter==1.1.1
 scikit-learn==1.9.1
 
 # Phase 2 - class-imbalance framework (SMOTE, RandomOverSampler, RandomUnderSampler and the
-# imblearn Pipeline that keeps resampling inside the training fold). Installing this added
-# sklearn-compat as a transitive dependency and upgraded nothing.
+# imblearn Pipeline that keeps resampling inside the training fold)
 imbalanced-learn==0.14.2
+
+# Phase 4 - cross-validation analysis (scipy.stats t-distribution for descriptive fold intervals)
+scipy==1.18.1
+
+# Phase 5 - model persistence (joblib) and the fresh-process persistence test, which hands data to
+# a separate Python process as Parquet (pyarrow)
+joblib==1.6.0
+pyarrow==25.0.1
+
+# Phase 6 - Streamlit dashboard (presentation layer only; loads the persisted model, never retrains)
+streamlit==1.64.0
+plotly==7.1.0
